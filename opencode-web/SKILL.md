@@ -84,7 +84,7 @@ Response: Session (full details)
 **Prometheus** (planning)
 - Dedicated planning and architecture agent
 - Creates detailed step-by-step plans
-- **Requires special workflow**: Send `/start-work` command after plan approval
+- **Requires special workflow**: Send `start-work` command after plan approval
 
 ### Agent selection
 - Default agent: **Sisyphus** when user doesn't specify
@@ -103,7 +103,7 @@ Construct model identifiers as an object `{ providerID, modelID }`.
 
 ### Model selection workflow
 - Ask user which AI model to use
-- Select model by its object `{ providerID, modelID }` in message requests
+- Use the model identifier in `providerID/modelID` string format (e.g., `zai-coding-plan/glm-4.7`)
 - If user doesn't specify: use the default model from the `default` field in the response
 
 ## Message handling
@@ -116,10 +116,7 @@ Headers:
   x-opencode-directory: /absolute/path/to/project
 Body: {
   agent,        // required: sisyphus/prometheus
-  model: {       // required: AI model object
-    providerID: string,
-    modelID: string
-  },
+  model: "zai-coding-plan/glm-4.7", // required: model string
   parts: [       // required: message parts
     {
       type: "text", 
@@ -148,12 +145,10 @@ Headers:
   x-opencode-directory: /absolute/path/to/project
 Body: {
   agent,       // required: sisyphus/prometheus
-  model: {      // required: AI model object
-    providerID: string,
-    modelID: string
-  },
-  command: string,      // required: slash command
-  arguments: any        // optional: command arguments
+  model: "zai-coding-plan/glm-4.7", // required: model string
+  command: string,      // required: slash command (e.g., "start-work")
+  arguments: string,    // optional: command arguments
+  parts: []             // required: usually empty for commands
 }
 Response: { info: Message, parts: Part[] }
 ```
@@ -171,10 +166,7 @@ Response: { info: Message, parts: Part[] }[]
   ```json
   {
     "agent": "Prometheus",
-    "model": {
-      "providerID": "anthropic",
-      "modelID": "claude-3-5-sonnet"
-    },
+    "model": "zai-coding-plan/glm-4.7",
     "parts": [{
       "role": "user",
       "content": { "type": "text", "text": "Analyze the task and propose a step-by-step plan. Ask clarification questions if needed." }
@@ -186,15 +178,14 @@ Response: { info: Message, parts: Part[] }[]
 - If the plan is incorrect or incomplete:
   - Send a follow-up message asking for revision
 - **CRITICAL**: When plan is approved and ready for execution:
-  - Send the `/start-work` slash command to begin implementation:
+  - Send the `start-work` command to begin implementation:
     ```json
     {
-      "command": "/start-work",
-      "agent": "Prometheus",
-      "model": {
-        "providerID": "anthropic",
-        "modelID": "claude-3-5-sonnet"
-      }
+      "command": "start-work",
+      "agent": "sisyphus",
+      "model": "zai-coding-plan/glm-4.7",
+      "arguments": "",
+      "parts": []
     }
     ```
 - This triggers Prometheus to hand off the plan to Sisyphus for execution
@@ -203,16 +194,15 @@ Response: { info: Message, parts: Part[] }[]
 
 ### After Prometheus plan approval
 
-1. **Send /start-work command**:
+1. **Send start-work command**:
    ```json
    POST /session/:id/command
    Body: {
-     "command": "/start-work",
-     "agent": "Prometheus",
-     "model": {
-       "providerID": "anthropic",
-       "modelID": "claude-3-5-sonnet"
-     }
+     "command": "start-work",
+     "agent": "sisyphus",
+     "model": "zai-coding-plan/glm-4.7",
+     "arguments": "",
+     "parts": []
    }
    ```
    This hands off execution to Sisyphus automatically.
@@ -245,8 +235,8 @@ For straightforward tasks without explicit planning:
    - Review and revise plan as needed
    - Get user approval on plan
 
-2. **Trigger execution** (/start-work)
-   - Send `/start-work` command when plan is approved
+2. **Trigger execution** (start-work)
+   - Send `start-work` command when plan is approved
    - Prometheus hands off to Sisyphus for implementation
 
 3. **Execution phase** (Sisyphus agent)
@@ -256,7 +246,7 @@ For straightforward tasks without explicit planning:
 
 4. **Review and iterate**
    - Check completed work against requirements
-   - If issues arise: use Prometheus to replan, then /start-work again
+   - If issues arise: use Prometheus to replan, then `start-work` again
    - Or let Sisyphus handle minor adjustments
 
 ### Direct Sisyphus workflow
@@ -339,10 +329,7 @@ Response: FileDiff[]
    ```json
    {
      "agent": "Prometheus",
-     "model": {
-       "providerID": "anthropic",
-       "modelID": "claude-3-5-sonnet"
-     },
+     "model": "zai-coding-plan/glm-4.7",
      "parts": [{
        "role": "user",
        "content": { "type": "text", "text": "Plan the implementation of [feature]" }
@@ -350,15 +337,14 @@ Response: FileDiff[]
    }
    ```
 6. **Review and revise** plan with Prometheus as needed
-7. **Trigger execution** with `/start-work` command:
+7. **Trigger execution** with `start-work` command:
    ```json
    {
-     "command": "/start-work",
-     "agent": "Prometheus",
-     "model": {
-       "providerID": "anthropic",
-       "modelID": "claude-3-5-sonnet"
-     }
+     "command": "start-work",
+     "agent": "sisyphus",
+     "model": "zai-coding-plan/glm-4.7",
+     "arguments": "",
+     "parts": []
    }
    ```
 8. **Monitor Sisyphus** implementing the plan via `GET /session/:id/message`
@@ -373,10 +359,7 @@ Response: FileDiff[]
 4. **Send task** to Sisyphus (default agent, no need to specify):
    ```json
    {
-     "model": {
-       "providerID": "anthropic",
-       "modelID": "claude-3-5-sonnet"
-     },
+     "model": "zai-coding-plan/glm-4.7",
      "parts": [{
        "role": "user",
        "content": { "type": "text", "text": "Add [feature] to the application" }
