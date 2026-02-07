@@ -1,6 +1,6 @@
 ---
 name: opencode-web
-description: "Control and operate oh-my-opencode via web API interface. This skill works with the oh-my-opencode plugin agents: Sisyphus (default), Hephaestus (automation), and Prometheus (planning). Use this skill to manage sessions, select models, switch agents, and coordinate codixwng through OpenCode's HTTP server."
+description: "Control and operate oh-my-opencode via web API interface. This skill works with the oh-my-opencode plugin agents: Sisyphus (default) and Prometheus (planning). Use this skill to manage sessions, select models, switch agents, and coordinate coding through OpenCode's HTTP server."
 metadata: {"version": "1.0.0", "author": "Kha Nguyen", "license": "MIT", "github_url": "https://github.com/disillusioners/opencode-web-skill"}
 ---
 
@@ -18,7 +18,6 @@ This skill uses the following agents from the oh-my-opencode plugin:
 | Agent | Purpose | Usage |
 |-------|---------|-------|
 | **Sisyphus** | General purpose coding and analysis | Default agent - use when agent not specified |
-| **Hephaestus** | Automation tasks and workflows | Use for automation-specific tasks |
 | **Prometheus** | Planning and architecture | Use for creating detailed plans |
 
 ## Pre-flight
@@ -53,6 +52,8 @@ Body: { parentID?, title? }
 Response: Session
 ```
 
+
+
 ### Get session details
 ```
 GET /session/:id
@@ -77,22 +78,10 @@ Response: Session (full details)
 - Handles most coding tasks
 - Can switch between planning and execution as needed
 
-**Hephaestus** (automation)
-- Specialized for automation tasks
-- Use for workflow automation
-- Handles repetitive or scripted tasks
-
 **Prometheus** (planning)
 - Dedicated planning and architecture agent
 - Creates detailed step-by-step plans
 - **Requires special workflow**: Send `/start-work` command after plan approval
-
-### Forbidden agents
-
-**Atlas** and other agents are USER-ONLY:
-- Designed for human interaction via TUI
-- Do NOT use these in automated workflows
-- They will not respond properly to programmatic control
 
 ### Agent selection
 - Default agent: **Sisyphus** when user doesn't specify
@@ -107,11 +96,11 @@ GET /config/providers
 Response: { providers: Provider[], default: { ... } }
 ```
 Extract models from the `providers` array. Each provider has a `models` object.
-Construct model IDs as `provider_id/model_id`.
+Construct model identifiers as an object `{ providerID, modelID }`.
 
 ### Model selection workflow
 - Ask user which AI model to use
-- Select model by its ID (`provider_id/model_id`) in message requests
+- Select model by its object `{ providerID, modelID }` in message requests
 - If user doesn't specify: use the default model from the `default` field in the response
 
 ## Message handling
@@ -121,15 +110,18 @@ Construct model IDs as `provider_id/model_id`.
 POST /session/:id/message
 Body: {
   messageID?,    // optional: reply to specific message
-  agent?,        // optional: agent ID (default if not specified)
-  model?,        // optional: provider_id/model_id format
+  agent,        // required: sisyphus/prometheus
+  model: {       // required: AI model object
+    providerID: string,
+    modelID: string
+  },
   noReply?,      // optional: true to just add message without response
   system?,       // optional: system prompt override
   tools?,        // optional: tool restrictions
   parts: [       // required: message parts
     {
-      role: "user" | "system" | "assistant",
-      content: { type: "text", text: "your message" }
+      type: "text", 
+      text: "your message"
     }
   ]
 }
@@ -148,8 +140,11 @@ Response: 204 No Content (no waiting)
 POST /session/:id/command
 Body: {
   messageID?,   // optional: context message ID
-  agent?,       // optional: agent ID
-  model?,       // optional: model ID
+  agent,       // required: sisyphus/prometheus
+  model: {      // required: AI model object
+    providerID: string,
+    modelID: string
+  },
   command: string,      // required: slash command
   arguments: any        // optional: command arguments
 }
@@ -169,7 +164,10 @@ Response: { info: Message, parts: Part[] }[]
   ```json
   {
     "agent": "Prometheus",
-    "model": "provider_id/model_id", // optional
+    "model": {
+      "providerID": "anthropic",
+      "modelID": "claude-3-5-sonnet"
+    },
     "parts": [{
       "role": "user",
       "content": { "type": "text", "text": "Analyze the task and propose a step-by-step plan. Ask clarification questions if needed." }
@@ -185,7 +183,11 @@ Response: { info: Message, parts: Part[] }[]
     ```json
     {
       "command": "/start-work",
-      "agent": "Prometheus"
+      "agent": "Prometheus",
+      "model": {
+        "providerID": "anthropic",
+        "modelID": "claude-3-5-sonnet"
+      }
     }
     ```
 - This triggers Prometheus to hand off the plan to Sisyphus for execution
@@ -199,7 +201,11 @@ Response: { info: Message, parts: Part[] }[]
    POST /session/:id/command
    Body: {
      "command": "/start-work",
-     "agent": "Prometheus"
+     "agent": "Prometheus",
+     "model": {
+       "providerID": "anthropic",
+       "modelID": "claude-3-5-sonnet"
+     }
    }
    ```
    This hands off execution to Sisyphus automatically.
@@ -326,7 +332,10 @@ Response: FileDiff[]
    ```json
    {
      "agent": "Prometheus",
-     "model": "provider_id/model_id", // optional: uses default or previously selected model
+     "model": {
+       "providerID": "anthropic",
+       "modelID": "claude-3-5-sonnet"
+     },
      "parts": [{
        "role": "user",
        "content": { "type": "text", "text": "Plan the implementation of [feature]" }
@@ -338,7 +347,11 @@ Response: FileDiff[]
    ```json
    {
      "command": "/start-work",
-     "agent": "Prometheus"
+     "agent": "Prometheus",
+     "model": {
+       "providerID": "anthropic",
+       "modelID": "claude-3-5-sonnet"
+     }
    }
    ```
 8. **Monitor Sisyphus** implementing the plan via `GET /session/:id/message`
@@ -353,7 +366,10 @@ Response: FileDiff[]
 4. **Send task** to Sisyphus (default agent, no need to specify):
    ```json
    {
-     "model": "provider_id/model_id", // optional
+     "model": {
+       "providerID": "anthropic",
+       "modelID": "claude-3-5-sonnet"
+     },
      "parts": [{
        "role": "user",
        "content": { "type": "text", "text": "Add [feature] to the application" }
