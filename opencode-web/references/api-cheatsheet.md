@@ -41,10 +41,7 @@ GET    /session/:id/message/:messageID  Get specific message
 **Agents & Models (oh-my-opencode)**
 ```
 GET /agent                   List available agents (Prometheus, Sisyphus, Hephaestus, etc.)
-GET /config/providers        List providers & default models
-GET /provider/auth           Get auth methods for providers
-POST /provider/{id}/oauth/authorize  OAuth authorize
-PUT /auth/:id                Set provider credentials
+GET /config/models           List available models
 ```
 
 **Projects & Files**

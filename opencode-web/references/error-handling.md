@@ -25,35 +25,7 @@ opencode serve
 ```
 Then I'll try again."
 
-### Authentication Errors
 
-**401 Unauthorized / Invalid credentials**
-
-**Diagnosis:**
-```
-GET /provider
-```
-Check if provider appears in `connected` array.
-
-**Solutions:**
-
-**For API keys:**
-1. Verify key format (sk-..., etc.)
-2. Check if key is expired
-3. Re-run PUT /auth/:id with correct key
-4. Ask user to generate new key if needed
-
-**For OAuth:**
-1. Re-initiate OAuth: POST /provider/{id}/oauth/authorize
-2. Verify authorization URL works
-3. Ensure user completes flow in browser
-4. Check for callback errors
-
-**Example response:**
-"Authentication failed for [Provider]. Please:
-- Check your API key format
-- Generate a new key if expired
-- Or re-authorize via OAuth if applicable"
 
 ### Session Errors
 
@@ -124,34 +96,16 @@ List all available agents.
 
 **Diagnosis:**
 ```
-GET /config/providers
+GET /config/models
 ```
 List available models.
 
 **Solutions:**
-1. Check format: must be `providerID:modelID`
-2. Verify provider is available
-3. Verify model is in provider's model list
+1. Use correct model ID from list
+2. Common format: `providerID:modelID`
 
 **Example response:**
-"Model [provider:model] not found. Available:
-- openai: gpt-4, gpt-3.5-turbo
-- anthropic: claude-3-opus, claude-3-sonnet
-
-Which model would you like to use?"
-
-**401 Model not authenticated**
-
-**Diagnosis:**
-```
-GET /provider
-```
-Check if provider is in `connected` array.
-
-**Solutions:**
-1. Complete authentication for provider
-2. Use API key or OAuth flow
-3. Check `/provider/auth` for requirements
+"Model [id] not found. Available models: [list]. Which model would you like to use?"
 
 ### Message Errors
 
@@ -284,11 +238,8 @@ Sending requests too quickly.
 # Server health
 GET /global/health
 
-# Available providers
-GET /provider
-
 # Config info
-GET /config
+GET /config/models
 
 # Sessions list
 GET /session
@@ -305,27 +256,16 @@ GET /project/current
 **General pattern:**
 1. **Identify error type** from HTTP status code or message
 2. **Run diagnostic** command(s) for context
-3. **Determine cause** (misconfiguration, network, auth, etc.)
+3. **Determine cause** (misconfiguration, network, etc.)
 4. **Propose solution** to user
 5. **Verify fix** by retrying original request
 6. **Document issue** for future reference
-
-**Example recovery:**
-```
-1. Error: 401 Unauthorized
-2. Diagnostic: GET /provider → shows provider not connected
-3. Cause: User hasn't authenticated
-4. Solution: Run OAuth flow or collect API key
-5. Verify: GET /provider → shows provider now in connected
-6. Retry: Original message request succeeds
-```
 
 ### Prevention Strategies
 
 1. **Always check health** before operations
 2. **Validate input** before sending (model IDs, session IDs)
-3. **Verify authentication** before sending messages
-4. **Check session status** before new messages
+3. **Check session status** before new messages
 5. **Use async** for long-running operations
 6. **Implement timeout** handling
 7. **Log errors** for debugging
@@ -335,7 +275,6 @@ GET /project/current
 Escalate to user/support if:
 - Persistent 500 errors from server
 - Unknown error types not documented
-- Authentication loops (can't get authenticated)
 - Corrupted sessions that won't recover
 - Repeated network issues despite server running
 
@@ -355,16 +294,7 @@ To fix:
 I'll retry once you've confirmed the server is running.
 ```
 
-```
-⚠️ Authentication needed
-Your OpenAI provider is not authenticated yet.
 
-Options:
-1. OAuth: Visit this link to authorize: [URL]
-2. API Key: Provide your OpenAI API key
-
-Which would you prefer?
-```
 
 ```
 🔄 Session stuck

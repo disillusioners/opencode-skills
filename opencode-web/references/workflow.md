@@ -21,37 +21,14 @@ List all sessions. Check if one exists for current project.
 - Ask user for approval
 - Create new session: `POST /session` with title
 
-### 3. Configure Provider and Model
+### 3. Select Model
 ```
-GET /config/providers
+GET /config/models
 ```
-List available providers and default models.
+List available models and select one.
 
-**Determine authentication:**
-```
-GET /provider/auth
-```
-Check if OAuth or API key is required.
-
-**OAuth flow:**
-```
-POST /provider/{id}/oauth/authorize
-```
-- Get authorization URL
-- Send to user
-- Wait for confirmation (user completes OAuth flow)
-
-**API key flow:**
-```
-PUT /auth/:id
-Body: { apiKey: "..." }
-```
-- Collect API key from user
-- Set credentials
-
-**Select model:**
-- Use default from `/config/providers` if user doesn't specify
-- Format: `providerID:modelID` (e.g., `openai:gpt-4`)
+- Use the default model if user doesn't specify
+- Use the model ID in message requests
 
 ### 4. List Available Agents
 ```
@@ -182,7 +159,6 @@ Check what items are completed.
 | Issue | Recovery Action |
 |-------|-----------------|
 | Session stuck | `POST /session/:id/abort` |
-| Authentication failed | Re-run auth flow |
 | Wrong model used | Send new message with correct model |
 | Prometheus not implementing | Send `/start-work` command |
 | Agent error | Switch to Sisyphus (default) and retry |

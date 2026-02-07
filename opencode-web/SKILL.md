@@ -107,39 +107,16 @@ Response: Agent[] (id, name, description, etc.)
 
 ## Model selection
 
-### List providers and models
+### List models
 ```
-GET /config/providers
-Response: { providers: Provider[], default: { [key: string]: string } }
-```
-
-### Provider authentication
-```
-GET /provider/auth
-Response: { [providerID: string]: ProviderAuthMethod[] }
-```
-
-For OAuth:
-```
-POST /provider/{id}/oauth/authorize
-Response: ProviderAuthAuthorization (login URL)
-```
-
-For API keys:
-```
-PUT /auth/:id
-Body: { apiKey, ... } // matches provider schema
-Response: boolean
+GET /config/models
+Response: Model[] (id, name, provider, etc.)
 ```
 
 ### Model selection workflow
-- Ask user which AI provider to use
-- Determine authentication method:
-  - OAuth: get authorization URL, send to user, wait for confirmation
-  - API key: collect from user, set via PUT /auth/:id
-  - Local: no authentication needed
-- Select model by `providerID:modelID` format in message requests
-- If user doesn't specify: use the default model from GET /config/providers
+- Ask user which AI model to use
+- Select model by its ID in message requests
+- If user doesn't specify: use the default model from GET /config/models
 
 ## Message handling
 
@@ -292,7 +269,6 @@ For straightforward tasks without explicit planning:
 | Error | Action |
 |-------|--------|
 | Server not reachable | Ask user to start `opencode serve` |
-| Authentication failed | Verify credentials or check OAuth flow |
 | Session not found | List sessions, create new if needed |
 | Agent not found | List agents, correct the ID |
 | Model not found | List providers/models, correct the ID |
@@ -342,19 +318,18 @@ Response: FileDiff[]
 2. **Reuse sessions** for the same project to preserve context
 3. **Use synchronous messages** for critical operations (plan review, confirmation)
 4. **Use asynchronous messages** for long-running implementations
-5. **Handle authentication** gracefully - collect credentials only when needed
-6. **Switch agents** between messages as needed (don't assume same agent for entire session)
-7. **Check default models** before forcing a specific one
-8. **Review the API docs** at `/doc` for the most up-to-date endpoint information
-9. **Use error responses** to guide user to the right action
-10. **Document the API calls** clearly in your responses for transparency
+5. **Switch agents** between messages as needed (don't assume same agent for entire session)
+6. **Check default models** before forcing a specific one
+7. **Review the API docs** at `/doc` for the most up-to-date endpoint information
+8. **Use error responses** to guide user to the right action
+9. **Document the API calls** clearly in your responses for transparency
 
 ## Example workflow (Prometheus → Sisyphus)
 
 1. **Verify server**: `GET http://127.0.0.1:4096/global/health`
 2. **List sessions**: `GET /session`
 3. **Find/create session** for project
-4. **Get models**: `GET /config/providers`
+4. **Get models**: `GET /config/models`
 5. **Start planning** with Prometheus:
    ```json
    {

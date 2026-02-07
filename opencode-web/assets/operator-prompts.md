@@ -1,24 +1,5 @@
-### Ask for provider
-Which AI provider do you want to use with oh-my-opencode?
-
-Common options:
-- OpenAI (gpt-4, gpt-3.5-turbo)
-- Anthropic (claude-3-opus, claude-3-sonnet)
-- Google (gemini-pro)
-- Ollama (local models)
-
-### Ask for auth method
-How should [Provider] authenticate?
-
-Options:
-- OAuth (recommended for most providers)
-- API key
-- Local (no auth needed, e.g., Ollama)
-
-### Ask for API key
-Please provide your [Provider] API key:
-
-Format: sk-... (or provider-specific format)
+### Ask for model
+Which AI model would you like to use with oh-my-opencode?
 
 ### Request plan via web API (Prometheus)
 Send a plan request to Prometheus agent to analyze the task and propose a step-by-step plan. Ask clarification questions if needed.
@@ -250,12 +231,12 @@ API call:
 POST /session/:id/abort
 ```
 
-### List available providers and models
-Get list of available AI providers and their models via OpenCode web API.
+### List available models
+Get list of available AI models via OpenCode web API.
 
 API call:
 ```
-GET /config/providers
+GET /config/models
 ```
 
 ### Get session diff
