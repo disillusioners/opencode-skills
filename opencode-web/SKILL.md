@@ -5,7 +5,7 @@ metadata: {"version": "1.0.0", "author": "Kha Nguyen", "license": "MIT", "github
 ---
 
 
-# OpenCode Web Controller (oh-my-opencode)
+# OpenCode Web Controller (with oh-my-opencode plugin)
 
 ## Core rule
 
@@ -21,22 +21,11 @@ This skill uses the following agents from the oh-my-opencode plugin:
 | **Hephaestus** | Automation tasks and workflows | Use for automation-specific tasks |
 | **Prometheus** | Planning and architecture | Use for creating detailed plans |
 
-**Note**: Atlas and other agents in oh-my-opencode are designed for user interaction only. Do NOT use them for automated agent control.
-
 ## Pre-flight
 
-- Verify OpenCode server is running: `opencode serve` (default: http://127.0.0.1:4096)
-- Check authentication requirements (if `OPENCODE_SERVER_PASSWORD` is set)
-- Confirm the server base URL with the user if different from default
-
-## Server connection
-
-- Default server URL: `http://127.0.0.1:4096`
-- API documentation available at: `/doc` (e.g., http://127.0.0.1:4096/doc)
-- Authentication (if configured):
-  - Username: default `opencode`, override with `OPENCODE_SERVER_USERNAME`
-  - Password: from `OPENCODE_SERVER_PASSWORD` environment variable
-- Always verify server health first: `GET /global/health`
+- Endpoint: `http://127.0.0.1:4096` (default)
+- Use health check to verify OpenCode server is running: `GET /global/health`
+- If not running, ask user to run `opencode serve`
 
 ## Project management
 
@@ -55,11 +44,7 @@ Response: Project[]
 
 ## Session management
 
-### List sessions
-```
-GET /session
-Response: Session[] (sessionID, title, createdAt, etc.)
-```
+If you currently have a session, use it. Otherwise, create a new session.
 
 ### Create new session
 ```
@@ -84,13 +69,7 @@ Response: Session (full details)
 
 ## Agent (mode) control
 
-### List available agents
-```
-GET /agent
-Response: Agent[] (id, name, description, etc.)
-```
-
-### Oh-my-opencode agents (for automation use only)
+### Oh-my-opencode agents
 
 **Sisyphus** (default agent)
 - General purpose coding and analysis
