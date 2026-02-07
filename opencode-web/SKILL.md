@@ -47,10 +47,11 @@ If you currently have a session, use it. Otherwise, create a new session.
 
 ### Create new session
 ```
-POST /session
+POST /session?directory=:path
 Body: { parentID?, title? }
 Response: Session
 ```
+- **CRITICAL**: You MUST remember the session `id` from the response to use in all subsequent `/session/:id/...` calls.
 
 
 
@@ -59,14 +60,6 @@ Response: Session
 GET /session/:id
 Response: Session (full details)
 ```
-
-### Session selection
-- List all sessions to find existing ones for the project
-- Check if a session for the current project already exists:
-  - Compare session title or project path
-- If existing session found: reuse it (preserves context)
-- If no existing session: create a new one (ask user first)
-- Never create a new session without user approval unless explicitly requested
 
 ## Agent (mode) control
 
@@ -325,8 +318,8 @@ Response: FileDiff[]
 ## Example workflow (Prometheus → Sisyphus)
 
 1. **Verify server**: `GET http://127.0.0.1:4096/global/health`
-2. **List sessions**: `GET /session`
-3. **Find/create session** for project
+2. **List sessions**: `GET /session?directory=/path/to/project`
+3. **Find/create session** for project (remember the session `id`)
 4. **Get models**: `GET /config/providers`
 5. **Start planning** with Prometheus:
    ```json
@@ -361,8 +354,8 @@ Response: FileDiff[]
 ## Example workflow (Direct Sisyphus)
 
 1. **Verify server**: `GET http://127.0.0.1:4096/global/health`
-2. **List sessions**: `GET /session`
-3. **Find/create session** for project
+2. **List sessions**: `GET /session?directory=/path/to/project`
+3. **Find/create session** for project (remember the session `id`)
 4. **Send task** to Sisyphus (default agent, no need to specify):
    ```json
    {
