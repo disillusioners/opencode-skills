@@ -11,6 +11,13 @@ metadata: {"version": "1.0.0", "author": "Kha Nguyen", "license": "MIT", "github
 
 This skill controls OpenCode's oh-my-opencode plugin through its web API (HTTP interface), not through the TUI or CLI. All communication happens via REST API calls to the OpenCode server.
 
+## API Headers
+
+Most API requests (especially those starting/managing sessions) require the following headers:
+- `Content-Type: application/json`
+- `Accept: application/json`
+- `x-opencode-directory: <absolute_path_to_project_directory>`
+
 ## Oh-my-opencode Agents
 
 This skill uses the following agents from the oh-my-opencode plugin:
@@ -47,7 +54,10 @@ If you currently have a session, use it. Otherwise, create a new session.
 
 ### Create new session
 ```
-POST /session?directory=:path
+POST /session
+Headers:
+  Content-Type: application/json
+  x-opencode-directory: /absolute/path/to/project
 Body: { parentID?, title? }
 Response: Session
 ```
@@ -101,16 +111,15 @@ Construct model identifiers as an object `{ providerID, modelID }`.
 ### Send message (synchronous)
 ```
 POST /session/:id/message
+Headers:
+  Content-Type: application/json
+  x-opencode-directory: /absolute/path/to/project
 Body: {
-  messageID?,    // optional: reply to specific message
   agent,        // required: sisyphus/prometheus
   model: {       // required: AI model object
     providerID: string,
     modelID: string
   },
-  noReply?,      // optional: true to just add message without response
-  system?,       // optional: system prompt override
-  tools?,        // optional: tool restrictions
   parts: [       // required: message parts
     {
       type: "text", 
@@ -124,6 +133,9 @@ Response: { info: Message, parts: Part[] }
 ### Send message (asynchronous)
 ```
 POST /session/:id/prompt_async
+Headers:
+  Content-Type: application/json
+  x-opencode-directory: /absolute/path/to/project
 Body: same as /session/:id/message
 Response: 204 No Content (no waiting)
 ```
@@ -131,8 +143,10 @@ Response: 204 No Content (no waiting)
 ### Execute slash command
 ```
 POST /session/:id/command
+Headers:
+  Content-Type: application/json
+  x-opencode-directory: /absolute/path/to/project
 Body: {
-  messageID?,   // optional: context message ID
   agent,       // required: sisyphus/prometheus
   model: {      // required: AI model object
     providerID: string,
