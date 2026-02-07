@@ -232,11 +232,11 @@ POST /session/:id/abort
 ```
 
 ### List available models
-Get list of available AI models via OpenCode web API.
+Get list of available AI models from providers via OpenCode web API.
 
 API call:
 ```
-GET /config/models
+GET /config/providers
 ```
 
 ### Get session diff

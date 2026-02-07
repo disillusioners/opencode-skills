@@ -23,9 +23,9 @@ List all sessions. Check if one exists for current project.
 
 ### 3. Select Model
 ```
-GET /config/models
+GET /config/providers
 ```
-List available models and select one.
+List available models from providers and select one.
 
 - Use the default model if user doesn't specify
 - Use the model ID in message requests

@@ -41,7 +41,7 @@ GET    /session/:id/message/:messageID  Get specific message
 **Agents & Models (oh-my-opencode)**
 ```
 GET /agent                   List available agents (Prometheus, Sisyphus, Hephaestus, etc.)
-GET /config/models           List available models
+GET /config/providers        List providers and available models
 ```
 
 **Projects & Files**

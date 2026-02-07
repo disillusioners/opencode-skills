@@ -109,14 +109,16 @@ Response: Agent[] (id, name, description, etc.)
 
 ### List models
 ```
-GET /config/models
-Response: Model[] (id, name, provider, etc.)
+GET /config/providers
+Response: { providers: Provider[], default: { ... } }
 ```
+Extract models from the `providers` array. Each provider has a `models` object.
+Construct model IDs as `providerID:modelID`.
 
 ### Model selection workflow
 - Ask user which AI model to use
-- Select model by its ID in message requests
-- If user doesn't specify: use the default model from GET /config/models
+- Select model by its ID (`providerID:modelID`) in message requests
+- If user doesn't specify: use the default model from the `default` field in the response
 
 ## Message handling
 

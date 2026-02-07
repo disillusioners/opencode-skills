@@ -96,13 +96,13 @@ List all available agents.
 
 **Diagnosis:**
 ```
-GET /config/models
+GET /config/providers
 ```
-List available models.
+List available models from providers.
 
 **Solutions:**
-1. Use correct model ID from list
-2. Common format: `providerID:modelID`
+1. Use correct model ID (`providerID:modelID`)
+2. Verify provider and model exist in list
 
 **Example response:**
 "Model [id] not found. Available models: [list]. Which model would you like to use?"
@@ -239,7 +239,7 @@ Sending requests too quickly.
 GET /global/health
 
 # Config info
-GET /config/models
+GET /config/providers
 
 # Sessions list
 GET /session
