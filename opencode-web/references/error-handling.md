@@ -101,7 +101,7 @@ GET /config/providers
 List available models from providers.
 
 **Solutions:**
-1. Use correct model ID (`providerID:modelID`)
+1. Use correct model ID (`provider_id/model_id`)
 2. Verify provider and model exist in list
 
 **Example response:**

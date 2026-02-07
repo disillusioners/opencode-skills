@@ -34,7 +34,7 @@ Response:
 **Extracting Models:**
 1. Iterate through the `providers` array.
 2. For each provider, access its `models` object.
-3. Construct the full model ID using the format `providerID:modelID` (e.g., `openai:gpt-4`).
+3. Construct the full model ID using the format `provider_id/model_id` (e.g., `openai/gpt-4`).
 
 ### Model Selection Strategy
 
@@ -43,22 +43,22 @@ Response:
 
 2. **If user specifies model:**
    - Check if the model exists in the `providers` list
-   - Use the format `providerID:modelID`
+   - Use the format `provider_id/model_id`
 
 3. **If user doesn't specify:**
    - Use the `default` mapping from `/config/providers` to find the default model for a preferred provider.
    - Or ask the user to clarify.
 
 4. **Model ID format:**
-   - ALWAYS use `providerID:modelID`
-   - Examples: `openai:gpt-4`, `anthropic:claude-3-opus`
+   - ALWAYS use `provider_id/model_id`
+   - Examples: `openai/gpt-4`, `anthropic/claude-3-opus`
 
 ### Applying Model in Messages
 
 **Specify in message body:**
 ```json
 {
-  "model": "openai:gpt-4",
+  "model": "openai/gpt-4",
   "agent": "plan",
   "parts": [...]
 }
@@ -71,7 +71,7 @@ Response:
 
 | Issue | Solution |
 |-------|----------|
-| Model not found | Verify model ID format `providerID:modelID` matches available models from `/config/providers` |
+| Model not found | Verify model ID format `provider_id/model_id` matches available models from `/config/providers` |
 | Server error | Ensure `opencode serve` is running and accessible `GET /global/health` |
 
 ### Best Practices

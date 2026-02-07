@@ -47,7 +47,7 @@ Get list of agents and their capabilities.
 POST /session/:id/message
 Body: {
   "agent": "Prometheus",
-  "model": "provider:model",
+  "model": "provider_id/model_id",
   "parts": [{
     "role": "user",
     "content": {

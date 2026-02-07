@@ -61,7 +61,7 @@ GET /find/file?query=        Find files by name
 {
   "messageID": "msg_...",
   "agent": "Prometheus|Sisyphus|Hephaestus",
-  "model": "provider:model",
+  "model": "provider_id/model_id",
   "noReply": false,
   "system": "optional system prompt",
   "tools": ["tool1", "tool2"],
@@ -97,7 +97,7 @@ GET /find/file?query=        Find files by name
 {
   "messageID": "msg_...",
   "agent": "Prometheus|Sisyphus|Hephaestus",
-  "model": "provider:model",
+  "model": "provider_id/model_id",
   "command": "/start-work|/sessions|/agents",
   "arguments": {}
 }
@@ -117,8 +117,8 @@ Body: {
 
 ### Model ID Format
 ```
-providerID:modelID
-Example: openai:gpt-4, anthropic:claude-3-opus
+provider_id/model_id
+Example: openai/gpt-4, anthropic/claude-3-opus
 ```
 
 ### Agent Selection (oh-my-opencode)

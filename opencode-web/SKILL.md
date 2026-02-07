@@ -38,6 +38,21 @@ This skill uses the following agents from the oh-my-opencode plugin:
   - Password: from `OPENCODE_SERVER_PASSWORD` environment variable
 - Always verify server health first: `GET /global/health`
 
+## Project management
+
+### Get current project
+```
+GET /project/current
+Response: Project (id, name, path, etc.)
+```
+
+### List projects
+```
+GET /project
+Response: Project[]
+```
+- Verify you are working on the correct project before creating sessions.
+
 ## Session management
 
 ### List sessions
@@ -113,11 +128,11 @@ GET /config/providers
 Response: { providers: Provider[], default: { ... } }
 ```
 Extract models from the `providers` array. Each provider has a `models` object.
-Construct model IDs as `providerID:modelID`.
+Construct model IDs as `provider_id/model_id`.
 
 ### Model selection workflow
 - Ask user which AI model to use
-- Select model by its ID (`providerID:modelID`) in message requests
+- Select model by its ID (`provider_id/model_id`) in message requests
 - If user doesn't specify: use the default model from the `default` field in the response
 
 ## Message handling
@@ -128,7 +143,7 @@ POST /session/:id/message
 Body: {
   messageID?,    // optional: reply to specific message
   agent?,        // optional: agent ID (default if not specified)
-  model?,        // optional: providerID:modelID format
+  model?,        // optional: provider_id/model_id format
   noReply?,      // optional: true to just add message without response
   system?,       // optional: system prompt override
   tools?,        // optional: tool restrictions
@@ -175,7 +190,7 @@ Response: { info: Message, parts: Part[] }[]
   ```json
   {
     "agent": "Prometheus",
-    "model": "provider:model",
+    "model": "provider_id/model_id", // optional
     "parts": [{
       "role": "user",
       "content": { "type": "text", "text": "Analyze the task and propose a step-by-step plan. Ask clarification questions if needed." }
@@ -284,11 +299,7 @@ For straightforward tasks without explicit planning:
 
 ## Utility endpoints
 
-### Get project info
-```
-GET /project/current
-Response: Project (id, path, name, etc.)
-```
+
 
 ### Get files and directories
 ```
@@ -331,12 +342,12 @@ Response: FileDiff[]
 1. **Verify server**: `GET http://127.0.0.1:4096/global/health`
 2. **List sessions**: `GET /session`
 3. **Find/create session** for project
-4. **Get models**: `GET /config/models`
+4. **Get models**: `GET /config/providers`
 5. **Start planning** with Prometheus:
    ```json
    {
      "agent": "Prometheus",
-     "model": "provider:model",
+     "model": "provider_id/model_id", // optional: uses default or previously selected model
      "parts": [{
        "role": "user",
        "content": { "type": "text", "text": "Plan the implementation of [feature]" }
@@ -363,7 +374,7 @@ Response: FileDiff[]
 4. **Send task** to Sisyphus (default agent, no need to specify):
    ```json
    {
-     "model": "provider:model",
+     "model": "provider_id/model_id", // optional
      "parts": [{
        "role": "user",
        "content": { "type": "text", "text": "Add [feature] to the application" }

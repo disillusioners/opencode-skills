@@ -9,7 +9,7 @@ API call:
 POST /session/:id/message
 Body: {
   "agent": "Prometheus",
-  "model": "provider:model",
+  "model": "provider_id/model_id",
   "parts": [{
     "role": "user",
     "content": {
@@ -60,7 +60,7 @@ API call:
 POST /session/:id/message
 Body: {
   "agent": "Sisyphus",
-  "model": "provider:model",
+  "model": "provider_id/model_id",
   "parts": [{
     "role": "user",
     "content": {
@@ -123,7 +123,7 @@ Sisyphus will automatically resume with the updated plan.
 POST /session/:id/message
 Body: {
   "agent": "plan",
-  "model": "provider:model",
+  "model": "provider_id/model_id",
   "parts": [{
     "role": "user",
     "content": {
@@ -160,7 +160,7 @@ API call:
 POST /session/:id/message
 Body: {
   "agent": "build",
-  "model": "provider:model",
+  "model": "provider_id/model_id",
   "parts": [{
     "role": "user",
     "content": {
