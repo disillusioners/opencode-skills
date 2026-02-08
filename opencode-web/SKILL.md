@@ -127,15 +127,7 @@ Body: {
 Response: { info: Message, parts: Part[] }
 ```
 
-### Send message (asynchronous)
-```
-POST /session/:id/prompt_async
-Headers:
-  Content-Type: application/json
-  x-opencode-directory: /absolute/path/to/project
-Body: same as /session/:id/message
-Response: 204 No Content (no waiting)
-```
+Please note that this is a synchronous call, so you need to wait for the response. Some response may be very long (10 minutes), so you need to wait for the response.
 
 ### Execute slash command
 ```
