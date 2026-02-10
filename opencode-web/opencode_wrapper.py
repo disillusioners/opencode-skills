@@ -147,7 +147,6 @@ def main():
     parser.add_argument("message", help="Message, command (/start...), or /fix (use /fix if stuck > 5 mins)")
     parser.add_argument("--agent", default=DEFAULT_AGENT, help=f"Agent to use (default: {DEFAULT_AGENT})")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Model to use (default: {DEFAULT_MODEL})")
-    parser.add_argument("--reset", action="store_true", help="Force create a new session for this name")
     parser.add_argument("--check-health", action="store_true", help="Check server health and exit")
     
     args = parser.parse_args()
@@ -208,8 +207,8 @@ def main():
             print(json.dumps(response, indent=2))
         sys.exit(0)
 
-    # Create new session if it doesn't exist or reset requested (only for non-commands)
-    if args.reset or not session_id:
+    # Create new session if it doesn't exist
+    if not session_id:
         session_id = create_session(title=args.session_name)
         save_session_mapping(args.session_name, session_id)
 

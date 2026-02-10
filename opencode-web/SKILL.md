@@ -23,11 +23,11 @@ python3 opencode-web/opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
 > [!IMPORTANT]
 > **Timeout Rule**: Every command or message sent to OpenCode may take time to process. You **MUST wait at least 5 minutes** for a response before considering the server stuck or the request failed. Only after this timeout should you attempt to use `/fix` or retry.
 
-- `<SESSION_NAME>`: Unique name for your session (e.g., `planning`, `task-1`). The script manages the mapping to internal Session IDs.
+- `<SESSION_NAME>`: Unique name for your session (e.g., `planning`, `task-1`). **If a session with this name does not exist, a new one is automatically created.**
 - `<MESSAGE>`: Text to send, or a command starting with `/`.
 - `[options]`:
     - `--agent <NAME>`: Switch agent (Default: `sisyphus`, Options: `prometheus`, `atlas`).
-    - `--reset`: Force create a new session for the given name.
+    - `--help`: Show all available options (avoid using this unless necessary).
 
 ### Examples
 
