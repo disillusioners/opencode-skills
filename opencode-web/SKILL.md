@@ -64,7 +64,6 @@ Response: Session
 - **CRITICAL**: You MUST remember the session `id` from the response to use in all subsequent `/session/:id/...` calls.
 
 
-
 ### Get session details
 ```
 GET /session/:id
@@ -91,7 +90,7 @@ Response: Session (full details)
 - Specify agent via `agent` field in message body
 - You can switch agents between messages without changing session
 
-## Model selection
+## Provider-Model selection
 
 ### List models
 ```
@@ -127,9 +126,11 @@ Body: {
 Response: { info: Message, parts: Part[] }
 ```
 
-Please note that this is a synchronous call, so you need to wait for the response. Some response may be very long (10 minutes), so you need to wait for the response.
+IMPORTANT: API is synchronous, so you need to wait for the response. Some response may be very long (10 minutes), so you need to wait for the response. Send message or command one by one, do not send multiple messages at once. Must wait for the response before sending the next message or command.
 
 ### Execute slash command
+Command also synchronous, it extend base on message.
+
 ```
 POST /session/:id/command
 Headers:
@@ -151,7 +152,7 @@ GET /session/:id/message?limit=N
 Response: { info: Message, parts: Part[] }[]
 ```
 
-## Prometheus agent behavior (Planning)
+## Prometheus agent workflow (Planning then Implementation)
 
 - Select or create a session for the project
 - Send a planning request using the Prometheus agent:
