@@ -11,13 +11,6 @@ metadata: {"version": "1.0.0", "author": "Kha Nguyen", "license": "MIT", "github
 
 This skill controls OpenCode's oh-my-opencode plugin through its web API (HTTP interface), not through the TUI or CLI. All communication happens via REST API calls to the OpenCode server.
 
-## API Headers
-
-Most API requests (especially those starting/managing sessions) require the following headers:
-- `Content-Type: application/json`
-- `Accept: application/json`
-- `x-opencode-directory: <absolute_path_to_project_directory>`
-
 ## Oh-my-opencode Agents
 
 This skill uses the following agents from the oh-my-opencode plugin:
@@ -33,6 +26,12 @@ This skill uses the following agents from the oh-my-opencode plugin:
 - Use health check to verify OpenCode server is running: `GET /global/health`
 - If not running, ask user to run `opencode serve`
 
+## API Headers
+
+Most API requests (especially those starting/managing sessions) require the following headers:
+- `Content-Type: application/json`
+- `Accept: application/json`
+- `x-opencode-directory: <absolute_path_to_project_directory>`
 ## Project management
 
 ### Get current project
@@ -152,13 +151,13 @@ GET /session/:id/message?limit=N
 Response: { info: Message, parts: Part[] }[]
 ```
 
-## Prometheus agent workflow (Planning then Implementation)
+## Planning Workflow: Plan (with prometheus) -> Implement (with atlas)
 
 - Select or create a session for the project
 - Send a planning request using the Prometheus agent:
   ```json
   {
-    "agent": "Prometheus",
+    "agent": "prometheus",
     "model": "zai-coding-plan/glm-4.7",
     "parts": [{
       "role": "user",
@@ -175,7 +174,7 @@ Response: { info: Message, parts: Part[] }[]
     ```json
     {
       "command": "start-work",
-      "agent": "sisyphus",
+      "agent": "atlas",
       "model": "zai-coding-plan/glm-4.7",
       "arguments": "",
       "parts": []
@@ -183,41 +182,11 @@ Response: { info: Message, parts: Part[] }[]
     ```
 - This triggers Prometheus to hand off the plan to Sisyphus for execution
 
-## Implementation workflow (Sisyphus)
+## Direct Q&A, simple tasks workflow (Sisyphus)
 
-### After Prometheus plan approval
-
-1. **Send start-work command**:
-   ```json
-   POST /session/:id/command
-   Body: {
-     "command": "start-work",
-     "agent": "sisyphus",
-     "model": "zai-coding-plan/glm-4.7",
-     "arguments": "",
-     "parts": []
-   }
-   ```
-   This hands off execution to Sisyphus automatically.
-
-2. **Monitor Sisyphus execution**:
-   ```json
-   GET /session/:id/message?limit=20
-   ```
-   Watch for Sisyphus messages implementing the plan.
-
-3. **Handle questions from Sisyphus**:
-   If Sisyphus asks clarification questions:
-   - Respond directly in the same message thread
-   - Sisyphus can handle both planning and execution context
-   - No need to switch agents - Sisyphus is capable
-
-### Direct Sisyphus usage
-
-For straightforward tasks without explicit planning:
+For straightforward tasks or Q&A:
 - Use Sisyphus directly (default agent)
-- Sisyphus will plan and execute as needed
-- Agent ID can be omitted to use session default (Sisyphus)
+- 
 
 ## Completion and looping
 
