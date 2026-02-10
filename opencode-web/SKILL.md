@@ -40,6 +40,9 @@ Use this script instead of raw `curl` requests.
 python3 opencode-web/opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
 ```
 
+> [!IMPORTANT]
+> **Timeout Rule**: Every command or message sent to OpenCode may take time to process. You **MUST wait at least 5 minutes** for a response before considering the server stuck or the request failed. Only after this timeout should you attempt to use `/fix` or retry.
+
 - `<SESSION_NAME>`: A unique name for your session (e.g., `planning`, `task-1`). The script will automatically map this to the correct Session ID. If the name is new, a new session is created.
 - `<MESSAGE>`: The text to send, or a command starting with `/`.
 
@@ -75,6 +78,16 @@ Example:
 ```bash
 python3 opencode-web/opencode_wrapper.py "task-1" "/log 5"
 ```
+
+### 5. Fix Stuck Sessions
+
+If OpenCode gets stuck (defined as **no response for more than 5 minutes**), use `/fix` to abort the current generation and send a "continue" message to resume:
+
+```bash
+python3 opencode-web/opencode_wrapper.py <SESSION_NAME> "/fix"
+```
+
+**Rule**: Agents MUST wait at least 5 minutes without a response before using this command.
 
 ## Workflows
 

@@ -144,7 +144,7 @@ def print_message_log(messages, limit=10):
 def main():
     parser = argparse.ArgumentParser(description="OpenCode Wrapper for OpenClaw")
     parser.add_argument("session_name", help="Unique name for the session (e.g., 'plan-login', 'fix-bug-1')")
-    parser.add_argument("message", help="Message to send, command starting with /, or /log [N]")
+    parser.add_argument("message", help="Message, command (/start...), or /fix (use /fix if stuck > 5 mins)")
     parser.add_argument("--agent", default=DEFAULT_AGENT, help=f"Agent to use (default: {DEFAULT_AGENT})")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Model to use (default: {DEFAULT_MODEL})")
     parser.add_argument("--reset", action="store_true", help="Force create a new session for this name")
@@ -189,6 +189,23 @@ def main():
         
         msgs = get_session_messages(session_id)
         print_message_log(msgs, limit)
+        sys.exit(0)
+
+    # Handle /fix command (abort + continue)
+    if args.message == "/fix":
+        print(f"Aborting session {session_id}...")
+        api_request("POST", f"/session/{session_id}/abort", {})
+        print("Sending 'continue' message...")
+        response = send_message(session_id, "continue", args.agent, args.model)
+        # Output likely contains parts with text
+        if response and "parts" in response:
+            for part in response["parts"]:
+                if part.get("type") == "text":
+                    print(part.get("text"))
+                elif "content" in part and part["content"].get("type") == "text":
+                    print(part["content"].get("text"))
+        else:
+            print(json.dumps(response, indent=2))
         sys.exit(0)
 
     # Create new session if it doesn't exist or reset requested (only for non-commands)
