@@ -114,10 +114,37 @@ def send_command(session_id, command_str, agent, model):
     response = api_request("POST", f"/session/{session_id}/command", data)
     return response
 
+def get_session_messages(session_id):
+    # Fetch all messages
+    response = api_request("GET", f"/session/{session_id}/message")
+    if isinstance(response, list):
+        return response
+    return []
+
+def print_message_log(messages, limit=10):
+    total = len(messages)
+    start = max(0, total - limit)
+    subset = messages[start:]
+    
+    print(f"--- Showing last {len(subset)} of {total} messages ---")
+    for msg in subset:
+        role = msg.get("info", {}).get("role", "unknown")
+        parts = msg.get("parts", [])
+        
+        content = ""
+        for part in parts:
+            if part.get("type") == "text":
+                content += part.get("text", "")
+            # Add handling for other part types if needed
+            
+        print(f"\n[{role.upper()}]")
+        print(content)
+        print("-" * 20)
+
 def main():
     parser = argparse.ArgumentParser(description="OpenCode Wrapper for OpenClaw")
     parser.add_argument("session_name", help="Unique name for the session (e.g., 'plan-login', 'fix-bug-1')")
-    parser.add_argument("message", help="Message to send or command starting with /")
+    parser.add_argument("message", help="Message to send, command starting with /, or /log [N]")
     parser.add_argument("--agent", default=DEFAULT_AGENT, help=f"Agent to use (default: {DEFAULT_AGENT})")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Model to use (default: {DEFAULT_MODEL})")
     parser.add_argument("--reset", action="store_true", help="Force create a new session for this name")
@@ -141,13 +168,35 @@ def main():
     sessions = load_sessions()
     session_id = sessions.get(args.session_name)
     
-    # Create new session if it doesn't exist or reset requested
+    # Check if message is a command
+    is_command = args.message.startswith("/")
+
+    # Commands require an existing session
+    if is_command and not session_id:
+        print(f"Error: Command '{args.message}' requires an existing session.")
+        print(f"Session '{args.session_name}' not found.")
+        sys.exit(1)
+    
+    # Handle /log command specifically
+    if args.message.startswith("/log"):
+        parts = args.message.split()
+        limit = 10
+        if len(parts) > 1:
+            try:
+                limit = int(parts[1])
+            except ValueError:
+                print("Invalid limit for /log. Using default 10.")
+        
+        msgs = get_session_messages(session_id)
+        print_message_log(msgs, limit)
+        sys.exit(0)
+
+    # Create new session if it doesn't exist or reset requested (only for non-commands)
     if args.reset or not session_id:
         session_id = create_session(title=args.session_name)
         save_session_mapping(args.session_name, session_id)
 
-    # Check if message is a command
-    if args.message.startswith("/"):
+    if is_command:
         response = send_command(session_id, args.message, args.agent, args.model)
     else:
         response = send_message(session_id, args.message, args.agent, args.model)

@@ -61,6 +61,21 @@ python3 opencode-web/opencode_wrapper.py "planning-1" "Plan the implementation o
 python3 opencode-web/opencode_wrapper.py "task-1" "/start-work arguments" --agent atlas
 ```
 
+### 4. View Conversation History
+
+To view the recent message history (tail) of a session, use the `/log` command:
+
+```bash
+python3 opencode-web/opencode_wrapper.py <SESSION_NAME> "/log [N]"
+```
+
+- `N`: Number of recent messages to show (default: 10).
+
+Example:
+```bash
+python3 opencode-web/opencode_wrapper.py "task-1" "/log 5"
+```
+
 ## Workflows
 
 ### Planning Workflow: Plan (with prometheus) -> Implement (with atlas)
