@@ -8,8 +8,9 @@ import urllib.error
 from pathlib import Path
 
 # Configuration
+# Configuration
 OPENCODE_URL = "http://127.0.0.1:4096"
-SESSION_FILE = Path(".opencode_session")
+SESSION_MAP_FILE = Path(".opencode_sessions.json")
 DEFAULT_AGENT = "sisyphus"
 DEFAULT_MODEL = "zai-coding-plan/glm-4.7"
 
@@ -24,16 +25,18 @@ def get_project_root():
 
 PROJECT_ROOT = get_project_root()
 
-def load_session():
-    if SESSION_FILE.exists():
+def load_sessions():
+    if SESSION_MAP_FILE.exists():
         try:
-            return SESSION_FILE.read_text().strip()
+            return json.loads(SESSION_MAP_FILE.read_text().strip())
         except Exception:
-            return None
-    return None
+            return {}
+    return {}
 
-def save_session(session_id):
-    SESSION_FILE.write_text(session_id)
+def save_session_mapping(name, session_id):
+    sessions = load_sessions()
+    sessions[name] = session_id
+    SESSION_MAP_FILE.write_text(json.dumps(sessions, indent=2))
 
 def api_request(method, endpoint, data=None):
     url = f"{OPENCODE_URL}{endpoint}"
@@ -66,13 +69,12 @@ def check_health():
     except:
         return False
 
-def create_session():
-    print("Creating new session...")
-    data = {"title": "OpenClaw Wrapper Session"}
+def create_session(title=None):
+    print(f"Creating new session: {title or 'Untitled'}...")
+    data = {"title": title or "OpenClaw Wrapper Session"}
     response = api_request("POST", "/session", data)
     session_id = response.get("id")
     if session_id:
-        save_session(session_id)
         return session_id
     else:
         print("Failed to create session.")
@@ -114,10 +116,11 @@ def send_command(session_id, command_str, agent, model):
 
 def main():
     parser = argparse.ArgumentParser(description="OpenCode Wrapper for OpenClaw")
+    parser.add_argument("session_name", help="Unique name for the session (e.g., 'plan-login', 'fix-bug-1')")
     parser.add_argument("message", help="Message to send or command starting with /")
     parser.add_argument("--agent", default=DEFAULT_AGENT, help=f"Agent to use (default: {DEFAULT_AGENT})")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Model to use (default: {DEFAULT_MODEL})")
-    parser.add_argument("--reset", action="store_true", help="Force create a new session")
+    parser.add_argument("--reset", action="store_true", help="Force create a new session for this name")
     parser.add_argument("--check-health", action="store_true", help="Check server health and exit")
     
     args = parser.parse_args()
@@ -135,9 +138,13 @@ def main():
         print("Please run 'opencode serve' first.")
         sys.exit(1)
 
-    session_id = load_session()
+    sessions = load_sessions()
+    session_id = sessions.get(args.session_name)
+    
+    # Create new session if it doesn't exist or reset requested
     if args.reset or not session_id:
-        session_id = create_session()
+        session_id = create_session(title=args.session_name)
+        save_session_mapping(args.session_name, session_id)
 
     # Check if message is a command
     if args.message.startswith("/"):
