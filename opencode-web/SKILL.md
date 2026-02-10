@@ -28,11 +28,11 @@ This skill uses the following agents from the oh-my-opencode plugin:
 - If not running, ask user to run `opencode serve`
 
 ## AI model to use
-This skill use only one AI model: `zai-coding-plan/glm-4.7`
+This skill uses only one AI model: `zai-coding-plan/glm-4.7`
 
 ## How to call API
-API can call via curl or any client that you support.
-API response may very long text, you need to handle long text intelligently. One of my method is write response to file and read it with tail command.
+API can be called via curl or any client that you support.
+API responses may be very long text, you need to handle long text intelligently. One method is to write the response to a file and read it with the tail command.
 
 ## API to use
 
@@ -53,7 +53,7 @@ POST /session
 Headers:
   Content-Type: application/json
   x-opencode-directory: /absolute/path/to/project
-Body: { parentID?, title? }
+Body: { "parentID": "optional", "title": "optional" }
 Response: Session
 ```
 - **CRITICAL**: You MUST remember the session `id` from the response to use in all subsequent `/session/:id/...` calls.
@@ -73,19 +73,19 @@ Headers:
   Content-Type: application/json
   x-opencode-directory: /absolute/path/to/project
 Body: {
-  agent,        // required: sisyphus/prometheus
-  model: "zai-coding-plan/glm-4.7", // required: model string
-  parts: [       // required: message parts
+  "agent": "sisyphus",
+  "model": "zai-coding-plan/glm-4.7",
+  "parts": [
     {
-      type: "text", 
-      text: "your message"
+      "type": "text", 
+      "text": "your message"
     }
   ]
 }
-Response: { info: Message, parts: Part[] }
+Response: { "info": "Message", "parts": [] }
 ```
 
-IMPORTANT: API is synchronous, so you need to wait for the response. Some response may be very long (10 minutes), so you need to wait for the response. Send message or command one by one, do not send multiple messages at once. Must wait for the response before sending the next message or command.
+IMPORTANT: API is synchronous, so you need to wait for the response. Some responses may be very long (10 minutes), so you need to wait for the response. Send message or command one by one, do not send multiple messages at once. Must wait for the response before sending the next message or command.
 
 #### Execute slash command
 Command also synchronous, it extend base on message.
@@ -96,13 +96,13 @@ Headers:
   Content-Type: application/json
   x-opencode-directory: /absolute/path/to/project
 Body: {
-  agent,       // required: sisyphus/prometheus
-  model: "zai-coding-plan/glm-4.7", // required: model string
-  command: string,      // required: slash command (e.g., "start-work")
-  arguments: string,    // optional: command arguments
-  parts: []             // required: usually empty for commands
+  "agent": "sisyphus",
+  "model": "zai-coding-plan/glm-4.7",
+  "command": "start-work",
+  "arguments": "",
+  "parts": []
 }
-Response: { info: Message, parts: Part[] }
+Response: { "info": "Message", "parts": [] }
 ```
 
 #### Get messages
@@ -128,8 +128,8 @@ Response: { info: Message, parts: Part[] }[]
   }
   ```
 - Wait for the response (synchronous call)
-- If response message include questioning:
-1. Decide if it is simple, if not, ask user and wait for user response
+- If the response message includes questions:
+1. Decide if it is simple. If not, ask user and wait for user response
 2. Send message to answer it
 - **CRITICAL**: When plan is approved and ready for execution:
   - Send the `start-work` command to begin implementation:
@@ -142,13 +142,13 @@ Response: { info: Message, parts: Part[] }[]
       "parts": []
     }
     ```
-- This triggers Prometheus to hand off the plan to Sisyphus for execution
+- This triggers Prometheus to hand off the plan to Atlas for execution
 
 ### Direct Q&A, simple tasks workflow (Sisyphus)
 
 For straightforward tasks or Q&A:
 - Use Sisyphus directly (default agent)
-- If response message include questioning:
+- If the response message includes questions:
 1. Decide if it is simple, if not, ask user
 2. Send message to answer it
 
