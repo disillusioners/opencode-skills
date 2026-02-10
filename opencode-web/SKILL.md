@@ -11,13 +11,13 @@ This skill controls OpenCode's agents (Sisyphus, Prometheus, Atlas) via the web 
 ## Prerequisites
 
 1.  **Server Must Be Running**: Ensure `opencode serve` is running on `http://127.0.0.1:4096`.
-2.  **Wrapper Script**: Use `opencode-web/opencode_wrapper.py` for all interactions.
+2.  **Wrapper Script**: Use `~/opencode-web/opencode_wrapper.py` for all interactions.
 
 ## Usage
 
 **Syntax:**
 ```bash
-python3 opencode-web/opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
+python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
 ```
 
 > [!IMPORTANT]
@@ -33,29 +33,29 @@ python3 opencode-web/opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
 
 **1. General Coding (Sisyphus)**
 ```bash
-python3 opencode-web/opencode_wrapper.py "task-1" "Refactor utils.py"
+python3 ~/opencode-web/opencode_wrapper.py "task-1" "Refactor utils.py"
 ```
 
 **2. Planning (Prometheus)**
 ```bash
-python3 opencode-web/opencode_wrapper.py "plan-1" "Create a plan for auth" --agent prometheus
+python3 ~/opencode-web/opencode_wrapper.py "plan-1" "Create a plan for auth" --agent prometheus
 ```
 
 **3. Execution (Atlas) - Start Work**
 ```bash
-python3 opencode-web/opencode_wrapper.py "plan-1" "/start-work" --agent atlas
+python3 ~/opencode-web/opencode_wrapper.py "plan-1" "/start-work" --agent atlas
 ```
 
 **4. View History**
 View the last N messages of a session:
 ```bash
-python3 opencode-web/opencode_wrapper.py "task-1" "/log 5"
+python3 ~/opencode-web/opencode_wrapper.py "task-1" "/log 5"
 ```
 
 **5. Fix Stuck Sessions**
 If no response for > 5 minutes, abort and resume:
 ```bash
-python3 opencode-web/opencode_wrapper.py "task-1" "/fix"
+python3 ~/opencode-web/opencode_wrapper.py "task-1" "/fix"
 ```
 
 ## Workflows
