@@ -12,11 +12,13 @@ This skill controls OpenCode's agents (Sisyphus, Prometheus, Atlas) via the web 
 
 1.  **Server Must Be Running**: Ensure `opencode serve` is running on `http://127.0.0.1:4096`.
 2.  **Wrapper Script**: Use `~/opencode-web/opencode_wrapper.py` for all interactions.
+3.  **Working Directory**: You **MUST** change your current working directory to the project root before running the wrapper script. The script detects the project root from the CWD.
 
 ## Usage
 
 **Syntax:**
 ```bash
+cd <PROJECT_ROOT>
 python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
 ```
 
@@ -33,6 +35,7 @@ python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
 
 **1. General Coding (Sisyphus)**
 ```bash
+cd /path/to/project
 python3 ~/opencode-web/opencode_wrapper.py "task-1" "Refactor utils.py"
 ```
 
@@ -59,6 +62,7 @@ python3 ~/opencode-web/opencode_wrapper.py "task-1" "/fix"
 ```
 
 ## Workflows
+> **Reminder**: Ensure you are in the project root directory before running these commands (`cd /path/to/project`).
 
 **Plan & Execute**
 1.  **Plan**: `python3 ... "feature-A" "Make a plan..." --agent prometheus`
