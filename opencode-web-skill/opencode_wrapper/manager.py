@@ -58,6 +58,7 @@ class SessionManager(Thread):
     def _handle_request(self, req):
         r_type = req.get("type")
         payload = req.get("payload")
+        logger.info(f"Handling request: {r_type} for {self.session_id}")
         
         if r_type in ["PROMPT", "COMMAND"]:
             if self.worker and self.worker.is_alive():
@@ -84,7 +85,9 @@ class SessionManager(Thread):
                 # Wrapper protocol: Client sends formatted payload { "answers": [...] }
                 # The payload here is exactly what we send to API? 
                 # Let's assume payload has "answers" key.
+                logger.info(f"Sending answer for {payload.get('requestID')}: {payload.get('answers')}")
                 resp = requests.post(url, json={"answers": payload["answers"]}, headers=headers)
+                logger.info(f"Answer response: {resp.status_code} {resp.text}")
                 
                 # Optimistically remove question
                 self.questions = [q for q in self.questions if q["id"] != payload["requestID"]]

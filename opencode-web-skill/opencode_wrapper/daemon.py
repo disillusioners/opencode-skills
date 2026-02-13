@@ -86,6 +86,7 @@ class DaemonServer:
                     # PROMPT arg structure: { type: ..., payload: ... }
                     # Client sends: { action: PROMPT, session_id: ..., payload: ... }
                     internal_req = {"type": action, "payload": req.get("payload")}
+                    logger.info(f"Submitting {action} to manager {session_id}")
                     manager.submit_request(internal_req)
                     response = {"status": "ok", "message": "Request submitted"}
                 else:
