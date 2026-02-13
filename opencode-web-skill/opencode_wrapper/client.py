@@ -136,7 +136,7 @@ class Client:
                                         print(f"      - {label}: {desc}")
                                     else:
                                         print(f"      - {label}")
-                    print("\nRun: `python -m opencode_wrapper <session> /answer '...'`")
+                    print("\nRun: `python3 path_to/opencode_wrapper.py <session> /answer '...'`")
                     return
                 
                 if state == "IDLE" and result:
@@ -154,7 +154,7 @@ class Client:
         
         print("\n[TIMEOUT] Message is taking longer than 5 minutes.")
         print("Daemon is still running in background.")
-        print("Run: `python -m opencode_wrapper <session> /wait` to check again.")
+        print("Run: `python3 path_to/opencode_wrapper.py <session> /wait` to check again.")
 
 def run_client(args):
     # Resolve Name -> ID
@@ -223,7 +223,7 @@ def run_client(args):
             if 'not found' in error_msg.lower():
                 print(f"Error: Session '{args.session_name}' does not exist or is not active.")
                 print("\nTo start a new session, send a prompt:")
-                print(f"  python3 opencode_wrapper.py {args.session_name} \"Your prompt\"")
+                print(f"  python3 path_to/opencode_wrapper.py {args.session_name} \"Your prompt\"")
             else:
                 print(f"Failed to get session status: {error_msg}")
         

@@ -34,7 +34,7 @@ If you see a timeout message:
 ```text
 [TIMEOUT] Message is taking longer than 5 minutes.
 Daemon is still running in background.
-Run: `python -m opencode_wrapper <session> /wait` to check again.
+Run: `python3 ~/opencode-web/opencode_wrapper.py <session> /wait` to check again.
 ```
 
 **To Reconnect:**
