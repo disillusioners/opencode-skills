@@ -61,9 +61,9 @@ class SessionManager(Thread):
         logger.info(f"Handling request: {r_type} for {self.session_id}")
         
         if r_type in ["PROMPT", "COMMAND"]:
+            # Daemon should have already checked if we're busy, but just in case
             if self.worker and self.worker.is_alive():
-                # We ignore new prompts if busy (Client should check state first)
-                logger.warning(f"Session {self.session_id} is busy. Ignoring {r_type}.")
+                logger.warning(f"Session {self.session_id} received {r_type} while busy. This should be prevented by daemon.")
                 return
             
             self.state = "BUSY"
@@ -72,6 +72,7 @@ class SessionManager(Thread):
             endpoint = "command" if r_type == "COMMAND" else "message"
             self.worker = Worker(self.session_id, payload, self.on_worker_done, endpoint=endpoint)
             self.worker.start()
+
             
         elif r_type == "ANSWER":
             # Handle Answer immediately (unblocks agent)

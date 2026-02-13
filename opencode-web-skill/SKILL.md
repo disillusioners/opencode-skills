@@ -37,7 +37,7 @@ Daemon is still running in background.
 Run: `python3 ~/opencode-web/opencode_wrapper.py <session> /wait` to check again.
 ```
 High complexity tasks may take longer than 5 minutes to complete. Use `/wait` to check the status of the daemon. (The `/wait` command also have 5 minutes timeout and run synchronously)
-When you using other terminal/console tool to call the wrapper script, please modify the timeout param of those tool more than 5 minutes to wait correctly.
+When you using other terminal/console tool to call the wrapper script, please modify the timeout param of those tool call to more than 5 minutes to wait correctly.
 
 **To Reconnect:**
 ```bash

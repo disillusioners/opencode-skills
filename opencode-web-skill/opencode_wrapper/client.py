@@ -259,11 +259,8 @@ def run_client(args):
 
     elif cmd.startswith("/"):
         # Command: /cmd arg1 arg2
+        # Commands are always allowed, even when busy
         command = cmd[1:]
-        # Join arguments by space to emulate string behavior
-        # But if arguments were quoted, we lose that distinction if we join?
-        # Standard command payload usually expects 'arguments' as a single string?
-        # Let's join with space.
         arguments = " ".join(args.message[1:])
         
         payload = {
@@ -274,6 +271,9 @@ def run_client(args):
             "parts": []
         }
         resp = client.send_request("COMMAND", payload)
+        if resp and resp.get("status") == "error":
+            print(f"Error: {resp.get('message')}")
+            return
         print(f"Command sent: {resp.get('message')}")
         client.wait_for_result()
         
@@ -281,11 +281,31 @@ def run_client(args):
         # Prompt: "Hello world"
         # Join all parts with space
         full_message = " ".join(args.message)
+        
+        # Check if this is a special prompt that should be allowed even when busy
+        special_prompts = ["start-work", "continue", "abort", "retry"]
+        is_special = full_message.strip().lower() in special_prompts
+        
+        # Only check busy state for non-special prompts
+        if not is_special:
+            status_resp = client.send_request("GET_STATUS")
+            if status_resp and status_resp.get("status") == "ok":
+                state = status_resp.get("data", {}).get("state")
+                if state == "BUSY":
+                    print("Error: Session is currently busy processing another request.")
+                    print("Please wait for the current request to complete.")
+                    print("Run: `python3 path_to/opencode_wrapper.py <session> /status` to check status.")
+                    return
+        
         payload = {
             "agent": args.agent,
             "model": parse_model_string(args.model),
             "parts": [{"type": "text", "text": full_message}]
         }
         resp = client.send_request("PROMPT", payload)
+        if resp and resp.get("status") == "error":
+            print(f"Error: {resp.get('message')}")
+            return
         print(f"Prompt sent: {resp.get('message')}")
         client.wait_for_result()
+

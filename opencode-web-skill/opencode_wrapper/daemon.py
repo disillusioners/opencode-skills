@@ -83,12 +83,33 @@ class DaemonServer:
             elif action in ["PROMPT", "COMMAND", "ANSWER", "FIX"]:
                 manager = self.sessions.get(session_id)
                 if manager:
-                    # PROMPT arg structure: { type: ..., payload: ... }
-                    # Client sends: { action: PROMPT, session_id: ..., payload: ... }
-                    internal_req = {"type": action, "payload": req.get("payload")}
-                    logger.info(f"Submitting {action} to manager {session_id}")
-                    manager.submit_request(internal_req)
-                    response = {"status": "ok", "message": "Request submitted"}
+                    # Only block regular PROMPT when busy (not COMMAND or special prompts)
+                    if action == "PROMPT":
+                        snapshot = manager.get_snapshot()
+                        payload = req.get("payload", {})
+                        
+                        # Check if it's a special prompt like "start-work"
+                        is_special_prompt = False
+                        parts = payload.get("parts", [])
+                        if parts and len(parts) > 0:
+                            text = parts[0].get("text", "").strip().lower()
+                            # Allow special prompts like "start-work", "continue", etc.
+                            if text in ["start-work", "continue", "abort", "retry"]:
+                                is_special_prompt = True
+                        
+                        if snapshot["state"] == "BUSY" and not is_special_prompt:
+                            response = {"status": "error", "message": "Session is busy processing another request. Please wait."}
+                        else:
+                            internal_req = {"type": action, "payload": payload}
+                            logger.info(f"Submitting {action} to manager {session_id}")
+                            manager.submit_request(internal_req)
+                            response = {"status": "ok", "message": "Request submitted"}
+                    else:
+                        # COMMAND, ANSWER, and FIX can always be submitted
+                        internal_req = {"type": action, "payload": req.get("payload")}
+                        logger.info(f"Submitting {action} to manager {session_id}")
+                        manager.submit_request(internal_req)
+                        response = {"status": "ok", "message": "Request submitted"}
                 else:
                     response = {"status": "error", "message": "Session not found"}
 
