@@ -181,16 +181,6 @@ def run_client(args):
         print(f"Answer status: {resp.get('message')}")
         client.wait_for_result() # Wait for continued execution
 
-    elif args.message == "/fix":
-        print("Sending FIX command (Abort & Continue)...")
-        # We can pass agent/model if we want specific restart params, 
-        # but Daemon uses defaults or previous?
-        # Daemon implementation uses hardcoded defaults for now.
-        payload = {} 
-        resp = client.send_request("FIX", payload)
-        print(f"Fix status: {resp.get('message')}")
-        client.wait_for_result()
-        
     elif args.message and args.message.startswith("/"):
         # Command
         cmd_parts = args.message.split(maxsplit=1)

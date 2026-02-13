@@ -73,9 +73,9 @@ python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> /answer "ESLint"
 3.  **Implement**: `python3 ... "feature-A" "/start-work" --agent atlas`
 4.  **Wait (if long)**: `python3 ... "feature-A" /wait`
 
-**Fixing Stuck Sessions**
-If the daemon is stuck, you can restart it:
-```bash
-pkill -f opencode_wrapper
-```
-Then run your command again to restart the daemon.
+**Fixing Stuck Sessions (Auto-Fix)**
+The wrapper includes an **Automatic Fix** mechanism. If a session remains busy for more than **10 minutes** without a response, the daemon will automatically:
+1.  Abort the current operation.
+2.  Send a "continue" message to resume the session.
+
+You do not need to manually intervene. Just wait or check the status later.

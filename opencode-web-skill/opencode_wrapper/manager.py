@@ -2,8 +2,8 @@ import time
 import requests
 import queue
 import logging
-from threading import Thread, Event
-from .config import OPENCODE_URL, PROJECT_ROOT
+from threading import Thread, Event, Lock
+from .config import OPENCODE_URL, PROJECT_ROOT, AUTO_FIX_TIMEOUT
 from .worker import Worker
 
 logger = logging.getLogger("OpencodeManager")
@@ -19,6 +19,7 @@ class SessionManager(Thread):
         self.questions = []
         self._stop_event = Event()
         self.last_activity = 0
+        self.task_start_time = 0
         self.daemon = True # Run as daemon thread
         
     def run(self):
@@ -40,6 +41,7 @@ class SessionManager(Thread):
             # 3. Poll Questions (Throttle to 2s)
             if time.time() - self.last_activity > 2.0:
                  self._poll_questions()
+                 self._check_auto_fix()
                  self.last_activity = time.time()
 
     def submit_request(self, req):
@@ -65,6 +67,7 @@ class SessionManager(Thread):
             
             self.state = "BUSY"
             self.latest_response = None # Clear previous
+            self.task_start_time = time.time() # Track start time
             endpoint = "command" if r_type == "COMMAND" else "message"
             self.worker = Worker(self.session_id, payload, self.on_worker_done, endpoint=endpoint)
             self.worker.start()
@@ -96,40 +99,45 @@ class SessionManager(Thread):
                 logger.error(f"Answer failed: {e}")
 
         elif r_type == "FIX":
-            try:
-                # 1. Abort
-                logger.info(f"Aborting session {self.session_id}...")
-                requests.post(f"{OPENCODE_URL}/session/{self.session_id}/abort", 
-                              json={}, 
-                              headers={"x-opencode-directory": str(PROJECT_ROOT)})
-                
-                # 2. Reset Worker (if possible, start new)
-                # We can't easily kill the old thread, but we can ignore it.
-                # However, sending 'continue' message might fail if old request is still pending?
-                # Abort should make the old request return.
-                # Let's hope the old worker finishes quickly.
-                
-                # 3. Send Continue
-                logger.info(f"Sending continue to session {self.session_id}...")
-                self.latest_response = None
-                self.state = "BUSY"
-                
-                payload = {
-                    "agent": "sisyphus", # Default fallback
-                    "model": {"providerID": "zai-coding-plan", "modelID": "glm-4.7"}, # Default fallback
-                    "parts": [{"type": "text", "text": "continue"}]
-                }
-                # Use default model/agent if payload missing? Client should provide them ideally.
-                # Assuming generic continue is fine with defaults.
-                
-                # We overwrite self.worker. The old thread becomes orphaned and eventually dies.
-                self.worker = Worker(self.session_id, payload, self.on_worker_done, endpoint="message")
-                self.worker.start()
-                
-            except Exception as e:
-                logger.error(f"Fix failed: {e}")
-                self.state = "IDLE"
-                self.latest_response = {"result": None, "error": f"Fix failed: {e}"}
+            self._perform_fix()
+
+    def _perform_fix(self):
+        try:
+            logger.info(f"Performing FIX (Abort & Continue) for session {self.session_id}...")
+            
+            # 1. Abort
+            requests.post(f"{OPENCODE_URL}/session/{self.session_id}/abort", 
+                            json={}, 
+                            headers={"x-opencode-directory": str(PROJECT_ROOT)})
+            
+            # 2. Reset Worker (if possible, start new)
+            # We overwrite self.worker. The old thread becomes orphaned and eventually dies.
+            
+            # 3. Send Continue
+            self.latest_response = None
+            self.state = "BUSY"
+            self.task_start_time = time.time() # Reset timer
+            
+            payload = {
+                "agent": "sisyphus", # Default fallback
+                "model": {"providerID": "zai-coding-plan", "modelID": "glm-4.7"}, # Default fallback
+                "parts": [{"type": "text", "text": "continue"}]
+            }
+            
+            self.worker = Worker(self.session_id, payload, self.on_worker_done, endpoint="message")
+            self.worker.start()
+            
+        except Exception as e:
+            logger.error(f"Fix failed: {e}")
+            self.state = "IDLE"
+            self.latest_response = {"result": None, "error": f"Fix failed: {e}"}
+
+    def _check_auto_fix(self):
+        if self.state == "BUSY" and self.worker and self.worker.is_alive():
+            elapsed = time.time() - self.task_start_time
+            if elapsed > AUTO_FIX_TIMEOUT:
+                logger.warning(f"Session {self.session_id} exceeded {AUTO_FIX_TIMEOUT}s. Triggering Auto-Fix.")
+                self._perform_fix()
 
     def on_worker_done(self, result, error):
         self.latest_response = {"result": result, "error": error}
