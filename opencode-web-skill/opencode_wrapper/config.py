@@ -5,7 +5,7 @@ from pathlib import Path
 # OpenCode Configuration
 OPENCODE_URL = "http://127.0.0.1:4096"
 DEFAULT_AGENT = "sisyphus"
-DEFAULT_MODEL = "zai-coding-plan/glm-4.7"
+DEFAULT_MODEL = "zai-coding-plan/glm-5"
 
 # Daemon Configuration
 DAEMON_HOST = "127.0.0.1"

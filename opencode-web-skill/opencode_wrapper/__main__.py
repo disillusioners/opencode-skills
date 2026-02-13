@@ -11,7 +11,7 @@ def main():
     parser.add_argument("message", nargs="*", help="Message, command, or /wait")
     parser.add_argument("--daemon", action="store_true", help="Start the daemon server")
     parser.add_argument("--agent", default="sisyphus", help="Agent name")
-    parser.add_argument("--model", default="zai-coding-plan/glm-4.7", help="Model name")
+    parser.add_argument("--model", default="zai-coding-plan/glm-5", help="Model name")
     
     args = parser.parse_args()
     

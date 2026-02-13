@@ -127,7 +127,7 @@ class SessionManager(Thread):
             
             payload = {
                 "agent": "sisyphus", # Default fallback
-                "model": {"providerID": "zai-coding-plan", "modelID": "glm-4.7"}, # Default fallback
+                "model": {"providerID": "zai-coding-plan", "modelID": "glm-5"}, # Default fallback
                 "parts": [{"type": "text", "text": "continue"}]
             }
             

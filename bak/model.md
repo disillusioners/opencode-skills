@@ -8,7 +8,7 @@ Construct model identifiers as an object `{ providerID, modelID }`.
 
 ### Model selection workflow
 - Ask user which AI model to use
-- Use the model identifier in `providerID/modelID` string format (e.g., `zai-coding-plan/glm-4.7`)
+- Use the model identifier in `providerID/modelID` string format (e.g., `zai-coding-plan/glm-5`)
 - If user doesn't specify: use the default model from the `default` field in the response
 
 
