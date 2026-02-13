@@ -42,6 +42,19 @@ Run: `python -m opencode_wrapper <session> /wait` to check again.
 python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> /wait
 ```
 
+### Available Commands
+
+**Basic Flow:**
+```bash
+# Send a message or prompt
+python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> "Your request here"
+
+# Check status (non-blocking)
+python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> /status
+
+# Wait for result (blocking, up to 5 min)
+python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> /wait
+```
 ### Interactive Questions
 If the agent asks a question (e.g., requires clarification), the wrapper will prompt you:
 ```text

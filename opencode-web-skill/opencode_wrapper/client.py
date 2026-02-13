@@ -173,6 +173,52 @@ def run_client(args):
     
     if cmd == "/wait":
         client.wait_for_result()
+    
+    elif cmd == "/status":
+        # Display current session status without waiting
+        resp = client.send_request("GET_STATUS")
+        if resp and resp.get("status") == "ok":
+            data = resp["data"]
+            state = data.get("state", "UNKNOWN")
+            questions = data.get("questions", [])
+            result = data.get("latest_response")
+            
+            print("\n" + "="*40)
+            print(f"  SESSION STATUS: {state}")
+            print("="*40)
+            
+            if questions:
+                print("\n[QUESTIONS PENDING]")
+                for q in questions:
+                    print(f"Request ID: {q['id']}")
+                    for sub_q in q.get('questions', []):
+                        print(f"  - {sub_q.get('question')}")
+                        if sub_q.get('options'):
+                            print("    Options:")
+                            for opt in sub_q.get('options'):
+                                label = opt.get('label', '')
+                                desc = opt.get('description', '')
+                                if desc:
+                                    print(f"      - {label}: {desc}")
+                                else:
+                                    print(f"      - {label}")
+            
+            if result:
+                print("\n[LATEST RESPONSE]")
+                if result.get("error"):
+                    print(f"Error: {result['error']}")
+                elif result.get("result"):
+                    print(json.dumps(result.get("result"), indent=2))
+                else:
+                    print("No response data")
+            
+            if state == "IDLE" and not questions and not result:
+                print("\nSession is idle with no pending work.")
+            elif state == "BUSY":
+                print("\nSession is currently processing...")
+                print("Run `/wait` to monitor for completion.")
+        else:
+            print("Failed to get session status.")
         
     elif cmd == "/answer":
         # Usage: /answer "Ans1" "Ans2" ...
