@@ -128,7 +128,14 @@ class Client:
                         for sub_q in q.get('questions', []):
                             print(f"    {sub_q.get('question')}")
                             if sub_q.get('options'):
-                                print("    Options available.")
+                                print("    Options:")
+                                for opt in sub_q.get('options'):
+                                    label = opt.get('label', '')
+                                    desc = opt.get('description', '')
+                                    if desc:
+                                        print(f"      - {label}: {desc}")
+                                    else:
+                                        print(f"      - {label}")
                     print("\nRun: `python -m opencode_wrapper <session> /answer '...'`")
                     return
                 
@@ -194,6 +201,7 @@ def run_client(args):
         
         resp = client.send_request("ANSWER", payload)
         print(f"Answer status: {resp.get('message')}")
+        time.sleep(2) # Wait for backend to process answer and clear question
         client.wait_for_result() # Wait for continued execution
 
     elif cmd.startswith("/"):
