@@ -161,8 +161,9 @@ def run_client(args):
     session_id = resolve_session(args.session_name)
     client = Client(session_id)
     
-    # Ensure session is managed
-    client.send_request("START_SESSION")
+    # Ensure session is managed (but not for /status, which is read-only)
+    if args.message and args.message[0] != "/status":
+        client.send_request("START_SESSION")
     
     # args.message is now a list strings (shell split)
     if not args.message:
@@ -218,7 +219,13 @@ def run_client(args):
                 print("\nSession is currently processing...")
                 print("Run `/wait` to monitor for completion.")
         else:
-            print("Failed to get session status.")
+            error_msg = resp.get('message', 'Unknown error')
+            if 'not found' in error_msg.lower():
+                print(f"Error: Session '{args.session_name}' does not exist or is not active.")
+                print("\nTo start a new session, send a prompt:")
+                print(f"  python3 opencode_wrapper.py {args.session_name} \"Your prompt\"")
+            else:
+                print(f"Failed to get session status: {error_msg}")
         
     elif cmd == "/answer":
         # Usage: /answer "Ans1" "Ans2" ...
