@@ -157,13 +157,21 @@ def run_client(args):
     # Ensure session is managed
     client.send_request("START_SESSION")
     
-    if args.message == "/wait":
+    # args.message is now a list strings (shell split)
+    if not args.message:
+        print("No command provided.")
+        return
+
+    cmd = args.message[0]
+    
+    if cmd == "/wait":
         client.wait_for_result()
         
-    elif args.message and args.message.startswith("/answer"):
-        parts = args.message.split(" ", 1)
-        if len(parts) < 2:
-            print("Usage: /answer <answer_text_or_json>")
+    elif cmd == "/answer":
+        # Usage: /answer "Ans1" "Ans2" ...
+        answer_parts = args.message[1:]
+        if not answer_parts:
+            print("Usage: /answer <answer_text> [answer_text...]")
             return
         
         status = client.send_request("GET_STATUS")
@@ -172,24 +180,30 @@ def run_client(args):
             print("No pending questions.")
             return
 
+        # Matches first request ID
         request_id = questions[0]['id']
-        answer_text = parts[1]
         
-        # Simple wrap for now: [[answer_text]]
+        # Format payload: answers = [["Ans1"], ["Ans2"]]
+        # This maps 1 CLI arg -> 1 Question answer (single selection)
+        formatted_answers = [[ans] for ans in answer_parts]
+
         payload = {
             "requestID": request_id, 
-            "answers": [[answer_text]]
+            "answers": formatted_answers
         }
         
         resp = client.send_request("ANSWER", payload)
         print(f"Answer status: {resp.get('message')}")
         client.wait_for_result() # Wait for continued execution
 
-    elif args.message and args.message.startswith("/"):
-        # Command
-        cmd_parts = args.message.split(maxsplit=1)
-        command = cmd_parts[0][1:]
-        arguments = cmd_parts[1] if len(cmd_parts) > 1 else ""
+    elif cmd.startswith("/"):
+        # Command: /cmd arg1 arg2
+        command = cmd[1:]
+        # Join arguments by space to emulate string behavior
+        # But if arguments were quoted, we lose that distinction if we join?
+        # Standard command payload usually expects 'arguments' as a single string?
+        # Let's join with space.
+        arguments = " ".join(args.message[1:])
         
         payload = {
             "agent": args.agent,
@@ -202,15 +216,15 @@ def run_client(args):
         print(f"Command sent: {resp.get('message')}")
         client.wait_for_result()
         
-    elif args.message:
-        # Prompt
+    else:
+        # Prompt: "Hello world"
+        # Join all parts with space
+        full_message = " ".join(args.message)
         payload = {
             "agent": args.agent,
             "model": parse_model_string(args.model),
-            "parts": [{"type": "text", "text": args.message}]
+            "parts": [{"type": "text", "text": full_message}]
         }
         resp = client.send_request("PROMPT", payload)
         print(f"Prompt sent: {resp.get('message')}")
         client.wait_for_result()
-    else:
-        print("No command provided.")

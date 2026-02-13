@@ -54,6 +54,9 @@ If the agent asks a question (e.g., requires clarification), the wrapper will pr
 ```bash
 # Answer with text or option label
 python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> /answer "ESLint"
+
+# If multiple questions are asked:
+python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> /answer "ESLint" "Jest"
 ```
 
 ## Workflows
@@ -64,4 +67,5 @@ python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> /answer "ESLint"
 2.  **Refine**: `python3 ... "feature-A" "Feedback..." --agent prometheus`
 3.  **Implement**: `python3 ... "feature-A" "/start-work" --agent atlas`
 4.  **Wait (if long)**: `python3 ... "feature-A" /wait`
+5.  **Answer**: `python3 ... "feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
 
