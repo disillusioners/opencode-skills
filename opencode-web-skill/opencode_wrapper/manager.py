@@ -95,6 +95,42 @@ class SessionManager(Thread):
             except Exception as e:
                 logger.error(f"Answer failed: {e}")
 
+        elif r_type == "FIX":
+            try:
+                # 1. Abort
+                logger.info(f"Aborting session {self.session_id}...")
+                requests.post(f"{OPENCODE_URL}/session/{self.session_id}/abort", 
+                              json={}, 
+                              headers={"x-opencode-directory": str(PROJECT_ROOT)})
+                
+                # 2. Reset Worker (if possible, start new)
+                # We can't easily kill the old thread, but we can ignore it.
+                # However, sending 'continue' message might fail if old request is still pending?
+                # Abort should make the old request return.
+                # Let's hope the old worker finishes quickly.
+                
+                # 3. Send Continue
+                logger.info(f"Sending continue to session {self.session_id}...")
+                self.latest_response = None
+                self.state = "BUSY"
+                
+                payload = {
+                    "agent": "sisyphus", # Default fallback
+                    "model": {"providerID": "zai-coding-plan", "modelID": "glm-4.7"}, # Default fallback
+                    "parts": [{"type": "text", "text": "continue"}]
+                }
+                # Use default model/agent if payload missing? Client should provide them ideally.
+                # Assuming generic continue is fine with defaults.
+                
+                # We overwrite self.worker. The old thread becomes orphaned and eventually dies.
+                self.worker = Worker(self.session_id, payload, self.on_worker_done, endpoint="message")
+                self.worker.start()
+                
+            except Exception as e:
+                logger.error(f"Fix failed: {e}")
+                self.state = "IDLE"
+                self.latest_response = {"result": None, "error": f"Fix failed: {e}"}
+
     def on_worker_done(self, result, error):
         self.latest_response = {"result": result, "error": error}
         logger.info(f"Worker finished for {self.session_id}")

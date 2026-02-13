@@ -80,7 +80,7 @@ class DaemonServer:
                 else:
                     response = {"status": "error", "message": "Session not found"}
             
-            elif action in ["PROMPT", "COMMAND", "ANSWER"]:
+            elif action in ["PROMPT", "COMMAND", "ANSWER", "FIX"]:
                 manager = self.sessions.get(session_id)
                 if manager:
                     # PROMPT arg structure: { type: ..., payload: ... }
