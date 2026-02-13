@@ -27,7 +27,7 @@ python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
     - `--agent <NAME>`: Switch agent (Default: `sisyphus`, Options: `prometheus`, `atlas`).
     - `--help`: Show all available options.
 
-### Timeout & Reconnection
+### Patience on timeout
 Commands will timeout after **5 minutes** on the client side, but the **Daemon keeps working**.
 
 If you see a timeout message:
@@ -36,6 +36,8 @@ If you see a timeout message:
 Daemon is still running in background.
 Run: `python3 ~/opencode-web/opencode_wrapper.py <session> /wait` to check again.
 ```
+High complexity tasks may take longer than 5 minutes to complete. Use `/wait` to check the status of the daemon. (The `/wait` command also have 5 minutes timeout and run synchronously)
+When you using other terminal/console tool to call the wrapper script, please modify the timeout param of those tool more than 5 minutes to wait correctly.
 
 **To Reconnect:**
 ```bash
@@ -75,7 +77,13 @@ python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> /answer "ESLint" "Jest
 ## Workflows
 > **Reminder**: Ensure you are in the project root directory before running these commands (`cd /path/to/project`).
 
-**Plan & Execute**
+**Simple Workflow (For simple tasks)**
+1.  **Request**: `python3 ... "feature-A" "Your request here" --agent sisyphus`
+2.  **Wait**: `python3 ... "feature-A" /wait` (when needed)
+3.  **Answer**: `python3 ... "feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
+
+
+**Plan & Execute (For high complexity tasks that require planning)**
 1.  **Plan**: `python3 ... "feature-A" "Make a plan..." --agent prometheus`
 2.  **Refine**: `python3 ... "feature-A" "Feedback..." --agent prometheus`
 3.  **Implement**: `python3 ... "feature-A" "/start-work" --agent atlas`
