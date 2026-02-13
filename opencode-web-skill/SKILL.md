@@ -17,6 +17,7 @@ This skill controls OpenCode's agents (Sisyphus, Prometheus, Atlas) via the web 
 1.  **Wrapper Script**: Use `opencode_wrapper.py` for all interactions. Use absolute path to the wrapper script.
 2.  **Working Directory**: You **MUST** change your current working directory to the project root before running the wrapper script. The script detects the project root from the CWD.
 
+
 ## Usage
 
 **Syntax:**
