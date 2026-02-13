@@ -84,7 +84,7 @@ class SessionManager(Thread):
                 # Wrapper protocol: Client sends formatted payload { "answers": [...] }
                 # The payload here is exactly what we send to API? 
                 # Let's assume payload has "answers" key.
-                requests.post(url, json={"answers": payload["answers"]}, headers=headers)
+                resp = requests.post(url, json={"answers": payload["answers"]}, headers=headers)
                 
                 # Optimistically remove question
                 self.questions = [q for q in self.questions if q["id"] != payload["requestID"]]
