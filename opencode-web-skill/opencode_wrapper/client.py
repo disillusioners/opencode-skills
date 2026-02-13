@@ -268,7 +268,7 @@ def run_client(args):
         
         payload = {
             "agent": args.agent,
-            "model": parse_model_string(args.model),
+            "model": args.model,  # Command endpoint expects string format
             "command": command,
             "arguments": arguments,
             "parts": []
