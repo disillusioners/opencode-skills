@@ -105,7 +105,9 @@ class SessionManager(Thread):
             headers = {"x-opencode-directory": str(PROJECT_ROOT)}
             resp = requests.get(url, headers=headers, timeout=5)
             if resp.status_code == 200:
-                data = resp.json().get('data', [])
+                resp_json = resp.json()
+                data = resp_json if isinstance(resp_json, list) else resp_json.get('data', [])
+                
                 # Filter for this session
                 self.questions = [q for q in data if q.get('sessionID') == self.session_id]
                 

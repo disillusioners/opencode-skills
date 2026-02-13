@@ -61,13 +61,24 @@ class Client:
                 # Try to spawn daemon
                 if not self._check_daemon_running():
                     print("Starting daemon...")
-                    subprocess.Popen([sys.executable, "-m", "opencode_wrapper", "--daemon"], 
-                                     cwd=str(PROJECT_ROOT),
-                                     stdout=subprocess.DEVNULL, 
-                                     stderr=subprocess.DEVNULL)
-                    time.sleep(2) # Wait for start
-                    if not self.connect():
-                        print("Failed to connect to daemon.")
+                    try:
+                        with open('/tmp/opencode_daemon_startup.err', 'w') as err_file:
+                            subprocess.Popen([sys.executable, "-m", "opencode_wrapper", "--daemon"], 
+                                             cwd=str(PROJECT_ROOT),
+                                             stdout=err_file, 
+                                             stderr=err_file,
+                                             start_new_session=True)
+                    except Exception as e:
+                        print(f"Failed to start daemon: {e}")
+                        sys.exit(1)
+
+                    # Retry connecting for up to 5 seconds
+                    for _ in range(10):
+                        time.sleep(0.5)
+                        if self.connect():
+                            break
+                    else:
+                        print("Failed to connect to daemon after start attempt.")
                         sys.exit(1)
         
         req = {
