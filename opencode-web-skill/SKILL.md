@@ -10,11 +10,11 @@ This skill controls OpenCode's agents (Sisyphus, Prometheus, Atlas) via the web 
 
 ## Path to the wrapper script
 
-`path-to-wrapper/opencode_wrapper.py`
+`/Users/nguyenminhkha/All/Code/opensource-projects/openclaw-opencode-skills/opencode-web-skill/opencode_wrapper.py`
 
 ## Prerequisites
 
-1.  **Wrapper Script**: Use `path-to-wrapper/opencode_wrapper.py` for all interactions.
+1.  **Wrapper Script**: Use `opencode_wrapper.py` for all interactions. Use absolute path to the wrapper script.
 2.  **Working Directory**: You **MUST** change your current working directory to the project root before running the wrapper script. The script detects the project root from the CWD.
 
 ## Usage
@@ -22,7 +22,7 @@ This skill controls OpenCode's agents (Sisyphus, Prometheus, Atlas) via the web 
 **Syntax:**
 ```bash
 cd <PROJECT_ROOT>
-python3 path-to-wrapper/opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
+python3 opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
 ```
 
 - `<SESSION_NAME>`: Unique name for your session (e.g., `planning`, `task-1`). **If a session with this name does not exist, a new one is automatically created.**
@@ -38,14 +38,14 @@ If you see a timeout message:
 ```text
 [TIMEOUT] Message is taking longer than 5 minutes.
 Daemon is still running in background.
-Run: `python3 path-to-wrapper/opencode_wrapper.py <session> /wait` to check again.
+Run: `python3 opencode_wrapper.py <session> /wait` to check again.
 ```
 High complexity tasks may take longer than 5 minutes to complete. Use `/wait` to check the status of the daemon. (The `/wait` command also have 5 minutes timeout and run synchronously)
 When you using other terminal/console tool to call the wrapper script, please modify the timeout param of those tool call to more than 5 minutes to wait correctly.
 
 **To Reconnect:**
 ```bash
-python3 path-to-wrapper/opencode_wrapper.py <SESSION_NAME> /wait
+python3 opencode_wrapper.py <SESSION_NAME> /wait
 ```
 
 ### Available Commands
@@ -53,13 +53,13 @@ python3 path-to-wrapper/opencode_wrapper.py <SESSION_NAME> /wait
 **Basic Flow:**
 ```bash
 # Send a message or prompt
-python3 path-to-wrapper/opencode_wrapper.py <SESSION_NAME> "Your request here"
+python3 opencode_wrapper.py <SESSION_NAME> "Your request here"
 
 # Check status (non-blocking)
-python3 path-to-wrapper/opencode_wrapper.py <SESSION_NAME> /status
+python3 opencode_wrapper.py <SESSION_NAME> /status
 
 # Wait for result (blocking, up to 5 min)
-python3 path-to-wrapper/opencode_wrapper.py <SESSION_NAME> /wait
+python3 opencode_wrapper.py <SESSION_NAME> /wait
 ```
 ### Interactive Questions
 If the agent asks a question (e.g., requires clarification), the wrapper will prompt you:
@@ -72,10 +72,10 @@ If the agent asks a question (e.g., requires clarification), the wrapper will pr
 **To Answer:**
 ```bash
 # Answer with text or option label
-python3 path-to-wrapper/opencode_wrapper.py <SESSION_NAME> /answer "ESLint"
+python3 opencode_wrapper.py <SESSION_NAME> /answer "ESLint"
 
 # If multiple questions are asked:
-python3 path-to-wrapper/opencode_wrapper.py <SESSION_NAME> /answer "ESLint" "Jest"
+python3 opencode_wrapper.py <SESSION_NAME> /answer "ESLint" "Jest"
 ```
 
 ## Workflows
