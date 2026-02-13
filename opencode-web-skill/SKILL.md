@@ -10,16 +10,8 @@ This skill controls OpenCode's agents (Sisyphus, Prometheus, Atlas) via the web 
 
 ## Prerequisites
 
-1.  **Server Must Be Running**: Ensure `opencode serve` is running on `http://127.0.0.1:4096`.
-2.  **Wrapper Script**: Use `~/opencode-web/opencode_wrapper.py` for all interactions.
-3.  **Working Directory**: You **MUST** change your current working directory to the project root before running the wrapper script. The script detects the project root from the CWD.
-
-## Daemon Architecture
-
-This version uses a background daemon to manage sessions.
--   **Auto-Start**: The daemon starts automatically when you run the wrapper.
--   **Persistence**: Sessions stay alive even if the client disconnects.
--   **Interactive**: Supports agent questions and answers.
+1.  **Wrapper Script**: Use `~/opencode-web/opencode_wrapper.py` for all interactions.
+2.  **Working Directory**: You **MUST** change your current working directory to the project root before running the wrapper script. The script detects the project root from the CWD.
 
 ## Usage
 
@@ -73,9 +65,3 @@ python3 ~/opencode-web/opencode_wrapper.py <SESSION_NAME> /answer "ESLint"
 3.  **Implement**: `python3 ... "feature-A" "/start-work" --agent atlas`
 4.  **Wait (if long)**: `python3 ... "feature-A" /wait`
 
-**Fixing Stuck Sessions (Auto-Fix)**
-The wrapper includes an **Automatic Fix** mechanism. If a session remains busy for more than **10 minutes** without a response, the daemon will automatically:
-1.  Abort the current operation.
-2.  Send a "continue" message to resume the session.
-
-You do not need to manually intervene. Just wait or check the status later.

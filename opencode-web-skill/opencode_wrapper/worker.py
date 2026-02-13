@@ -31,6 +31,10 @@ class Worker(Thread):
             logger.info(f"Worker received response for session {self.session_id}")
             self.on_complete(result, error=None)
             
+        except requests.exceptions.ConnectionError:
+            msg = f"Could not connect to OpenCode server at {OPENCODE_URL}. Is 'opencode serve' running?"
+            logger.error(msg)
+            self.on_complete(None, error=msg)
         except Exception as e:
             logger.error(f"Worker error: {e}")
             self.on_complete(None, error=str(e))

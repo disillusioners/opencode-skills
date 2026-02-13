@@ -38,6 +38,10 @@ def resolve_session(name):
         SESSION_MAP_FILE.parent.mkdir(parents=True, exist_ok=True)
         SESSION_MAP_FILE.write_text(json.dumps(sessions, indent=2))
         return session_id
+    except requests.exceptions.ConnectionError:
+        print(f"Error: Could not connect to OpenCode server at {OPENCODE_URL}.")
+        print("Please ensure 'opencode serve' is running.")
+        sys.exit(1)
     except Exception as e:
         print(f"Error creating session: {e}")
         sys.exit(1)
