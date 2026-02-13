@@ -39,7 +39,7 @@ class SessionManager(Thread):
                     self.state = "IDLE"
 
             # 3. Poll Questions (Throttle to 2s)
-            if time.time() - self.last_activity > 2.0:
+            if time.time() - self.last_activity > 3.0:
                  self._poll_questions()
                  self._check_auto_fix()
                  self.last_activity = time.time()
@@ -112,6 +112,9 @@ class SessionManager(Thread):
             requests.post(f"{OPENCODE_URL}/session/{self.session_id}/abort", 
                             json={}, 
                             headers={"x-opencode-directory": str(PROJECT_ROOT)})
+            
+            # Wait for abort to complete before sending continue
+            time.sleep(3.0)
             
             # 2. Reset Worker (if possible, start new)
             # We overwrite self.worker. The old thread becomes orphaned and eventually dies.

@@ -147,10 +147,10 @@ class Client:
                          print(json.dumps(result.get("result"), indent=2))
                     return
                 
-                time.sleep(2)
+                time.sleep(3)
             else:
                 print("Error checking status via daemon.")
-                time.sleep(2)
+                time.sleep(3)
         
         print("\n[TIMEOUT] Message is taking longer than 5 minutes.")
         print("Daemon is still running in background.")
@@ -254,7 +254,7 @@ def run_client(args):
         
         resp = client.send_request("ANSWER", payload)
         print(f"Answer status: {resp.get('message')}")
-        time.sleep(2) # Wait for backend to process answer and clear question
+        time.sleep(3) # Wait for backend to process answer and clear question
         client.wait_for_result() # Wait for continued execution
 
     elif cmd.startswith("/"):
