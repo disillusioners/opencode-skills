@@ -17,7 +17,7 @@ import (
 	"opencode_wrapper/internal/daemon"
 )
 
-func restartDaemon() {
+func stopDaemon() bool {
 	// Find and kill process using the daemon port
 	fmt.Printf("Checking for process on port %d...\n", config.DaemonPort)
 
@@ -31,24 +31,50 @@ func restartDaemon() {
 		fmt.Sscanf(pidStr, "%d", &pid)
 
 		if pid > 0 {
-			fmt.Printf("Killing existing daemon (PID: %d)...\n", pid)
+			fmt.Printf("Stopping daemon (PID: %d)...\n", pid)
 			process, err := os.FindProcess(pid)
 			if err == nil {
 				process.Signal(syscall.SIGKILL)
 				time.Sleep(500 * time.Millisecond)
+				fmt.Println("Daemon stopped.")
+				return true
 			}
 		}
 	}
 
 	// Clean up PID file if exists
 	os.Remove(config.PidFile)
+	fmt.Println("No running daemon found.")
+	return false
+}
 
-	// Start new daemon in background
-	fmt.Println("Starting new daemon in background...")
+func startDaemon() {
+	// Check if daemon is already running
+	cmd := exec.Command("lsof", "-ti", fmt.Sprintf(":%d", config.DaemonPort))
+	output, err := cmd.Output()
+
+	if err == nil && len(output) > 0 {
+		fmt.Println("Daemon is already running.")
+		return
+	}
+
+	// Start daemon in background
+	fmt.Println("Starting daemon in background...")
 	executable, _ := os.Executable()
 	cmd = exec.Command(executable, "--daemon")
 	cmd.Dir = config.ProjectRoot
-	_ = cmd.Start()
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Failed to start daemon: %v\n", err)
+		return
+	}
+	fmt.Printf("Daemon started (PID: %d).\n", cmd.Process.Pid)
+}
+
+func restartDaemon() {
+	stopDaemon()
+	// Clean up PID file if exists
+	os.Remove(config.PidFile)
+	startDaemon()
 }
 
 func main() {
@@ -79,7 +105,14 @@ func main() {
 
 	command := args[0]
 
-	if command == "restart" {
+	switch command {
+	case "start":
+		startDaemon()
+		return
+	case "stop":
+		stopDaemon()
+		return
+	case "restart":
 		restartDaemon()
 		return
 	}
@@ -245,6 +278,8 @@ func parseModel(m string) api.ModelDetails {
 
 func printUsage() {
 	fmt.Println("Usage:")
+	fmt.Println("  opencode_wrapper start")
+	fmt.Println("  opencode_wrapper stop")
 	fmt.Println("  opencode_wrapper restart")
 	fmt.Println("  opencode_wrapper init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
 	fmt.Println("  opencode_wrapper <PROJECT> <SESSION_NAME> <MESSAGE> [options]")
