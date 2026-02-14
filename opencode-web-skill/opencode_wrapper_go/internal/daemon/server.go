@@ -1,0 +1,190 @@
+package daemon
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"opencode_wrapper/internal/api"
+	"opencode_wrapper/internal/config"
+	"opencode_wrapper/internal/manager"
+)
+
+type Server struct {
+	sessions map[string]*manager.SessionManager
+	listener net.Listener
+}
+
+func NewServer() *Server {
+	return &Server{
+		sessions: make(map[string]*manager.SessionManager),
+	}
+}
+
+func (s *Server) Start() {
+	if err := s.writePID(); err != nil {
+		log.Fatalf("Failed to write PID file: %v", err)
+	}
+
+	addr := fmt.Sprintf("%s:%d", config.DaemonHost, config.DaemonPort)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("Failed to listen on %s: %v", addr, err)
+	}
+	s.listener = ln
+	log.Printf("Daemon listening on %s", addr)
+
+	// Handle signals
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		s.Stop()
+	}()
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			// Check if closed
+			select {
+			case <-c:
+				return
+			default:
+				log.Printf("Accept error: %v", err)
+				continue
+			}
+		}
+		go s.handleConnection(conn)
+	}
+}
+
+func (s *Server) Stop() {
+	log.Println("Stopping daemon...")
+	if s.listener != nil {
+		s.listener.Close()
+	}
+
+	// Stop all managers
+	for _, sm := range s.sessions {
+		sm.Stop()
+	}
+
+	if err := os.Remove(config.PidFile); err != nil {
+		log.Printf("Failed to remove PID file: %v", err)
+	}
+	os.Exit(0)
+}
+
+func (s *Server) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	buf := make([]byte, 4096)
+	n, err := conn.Read(buf)
+	if err != nil {
+		return
+	}
+
+	var req struct {
+		Action    string                 `json:"action"`
+		SessionID string                 `json:"session_id"`
+		Payload   map[string]interface{} `json:"payload"`
+	}
+
+	if err := json.Unmarshal(buf[:n], &req); err != nil {
+		s.sendError(conn, "Invalid JSON")
+		return
+	}
+
+	response := map[string]interface{}{"status": "error", "message": "Unknown action"}
+
+	switch req.Action {
+	case "PING":
+		response = map[string]interface{}{"status": "ok", "message": "PONG"}
+
+	case "START_SESSION":
+		if _, exists := s.sessions[req.SessionID]; !exists {
+			sm := manager.NewSessionManager(req.SessionID)
+			sm.Start()
+			s.sessions[req.SessionID] = sm
+			log.Printf("Started manager for session %s", req.SessionID)
+		}
+		response = map[string]interface{}{"status": "ok", "message": "Session managed"}
+
+	case "GET_STATUS":
+		if sm, ok := s.sessions[req.SessionID]; ok {
+			response = map[string]interface{}{"status": "ok", "data": sm.GetSnapshot()}
+		} else {
+			response = map[string]interface{}{"status": "error", "message": "Session not found"}
+		}
+
+	case "PROMPT", "COMMAND", "ANSWER", "FIX":
+		if sm, ok := s.sessions[req.SessionID]; ok {
+			// Verify BUSY state for PROMPT
+			if req.Action == "PROMPT" {
+				snapshot := sm.GetSnapshot()
+				state, _ := snapshot["state"].(manager.State)
+
+				// Check if special prompt
+				isSpecial := false
+				if parts, ok := req.Payload["parts"].([]interface{}); ok && len(parts) > 0 {
+					if partMap, ok := parts[0].(map[string]interface{}); ok {
+						if text, ok := partMap["text"].(string); ok {
+							if text == "start-work" || text == "continue" || text == "abort" || text == "retry" {
+								isSpecial = true
+							}
+						}
+					}
+				}
+
+				if state == manager.StateBusy && !isSpecial {
+					response = map[string]interface{}{"status": "error", "message": "Session is busy"}
+					break // break switch, send response
+				}
+			}
+
+			// Convert payload to specific types
+			var internalPayload interface{}
+			payloadBytes, _ := json.Marshal(req.Payload) // Re-marshal to unmarshal into struct
+
+			if req.Action == "PROMPT" {
+				var p api.PromptRequest
+				json.Unmarshal(payloadBytes, &p)
+				internalPayload = p
+			} else if req.Action == "COMMAND" {
+				var p api.CommandRequest
+				json.Unmarshal(payloadBytes, &p)
+				internalPayload = p
+			} else if req.Action == "ANSWER" {
+				var p api.AnswerRequest
+				json.Unmarshal(payloadBytes, &p)
+				internalPayload = p
+			}
+
+			sm.SubmitRequest(manager.Request{Type: req.Action, Payload: internalPayload})
+			response = map[string]interface{}{"status": "ok", "message": "Request submitted"}
+
+		} else {
+			response = map[string]interface{}{"status": "error", "message": "Session not found"}
+		}
+	}
+
+	s.sendResponse(conn, response)
+}
+
+func (s *Server) sendResponse(conn net.Conn, resp map[string]interface{}) {
+	bytes, _ := json.Marshal(resp)
+	conn.Write(bytes)
+}
+
+func (s *Server) sendError(conn net.Conn, msg string) {
+	s.sendResponse(conn, map[string]interface{}{"status": "error", "message": msg})
+}
+
+func (s *Server) writePID() error {
+	pid := os.Getpid()
+	return os.WriteFile(config.PidFile, []byte(fmt.Sprintf("%d", pid)), 0644)
+}
