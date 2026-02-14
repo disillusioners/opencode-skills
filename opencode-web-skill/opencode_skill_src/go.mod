@@ -1,4 +1,4 @@
-module opencode_wrapper
+module opencode_skill
 
 go 1.22.5
 

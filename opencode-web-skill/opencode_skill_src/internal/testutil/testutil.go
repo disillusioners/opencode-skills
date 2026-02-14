@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"opencode_wrapper/internal/daemon"
+	"opencode_skill/internal/daemon"
 )
 
 func FreePort() (int, error) {

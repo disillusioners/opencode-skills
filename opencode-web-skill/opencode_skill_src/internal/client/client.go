@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"opencode_wrapper/internal/config"
-	"opencode_wrapper/internal/manager"
+	"opencode_skill/internal/config"
+	"opencode_skill/internal/manager"
 )
 
 type Client struct {
@@ -170,7 +170,7 @@ func (c *Client) WaitForResult() {
 
 	fmt.Println("\n[TIMEOUT] Message is taking longer than 10 minutes.")
 	fmt.Println("Daemon is still running in background.")
-	fmt.Printf("Run: `opencode_wrapper %s /wait` to check again.\n", c.fullSessionRef())
+	fmt.Printf("Run: `opencode_skill %s /wait` to check again.\n", c.fullSessionRef())
 }
 
 func (c *Client) printQuestions(questions []interface{}) {
@@ -204,7 +204,7 @@ func (c *Client) printQuestions(questions []interface{}) {
 			}
 		}
 	}
-	fmt.Printf("\nRun: `opencode_wrapper %s /answer ...`\n", c.fullSessionRef())
+	fmt.Printf("\nRun: `opencode_skill %s /answer ...`\n", c.fullSessionRef())
 }
 
 func (c *Client) Status() {

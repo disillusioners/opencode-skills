@@ -42,7 +42,7 @@ func init() {
 	}
 
 	homeDir, _ := os.UserHomeDir()
-	WrapperDir = filepath.Join(homeDir, ".opencode_wrapper")
+	WrapperDir = filepath.Join(homeDir, ".opencode_skill")
 
 	if _, err := os.Stat(WrapperDir); os.IsNotExist(err) {
 		_ = os.MkdirAll(WrapperDir, 0755)

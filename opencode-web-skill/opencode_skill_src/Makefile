@@ -31,4 +31,4 @@ restart:
 
 clean:
 	rm -f $(BINARY_NAME)
-	rm -f /tmp/opencode_wrapper_go.log
+	rm -f /tmp/opencode_skill_go.log

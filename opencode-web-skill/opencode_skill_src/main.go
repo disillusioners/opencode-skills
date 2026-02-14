@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"opencode_wrapper/internal/api"
-	"opencode_wrapper/internal/client"
-	"opencode_wrapper/internal/config"
-	"opencode_wrapper/internal/daemon"
+	"opencode_skill/internal/api"
+	"opencode_skill/internal/client"
+	"opencode_skill/internal/config"
+	"opencode_skill/internal/daemon"
 )
 
 func stopDaemon() bool {
@@ -119,7 +119,7 @@ func main() {
 
 	if command == "init-session" {
 		if len(args) < 4 {
-			fmt.Println("Usage: opencode_wrapper init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
+			fmt.Println("Usage: opencode_skill init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
 			os.Exit(1)
 		}
 		project := args[1]
@@ -142,9 +142,9 @@ func main() {
 
 	// Normal run: <PROJECT> <SESSION_NAME> [MESSAGE...]
 	if len(args) < 2 {
-		fmt.Println("Usage: opencode_wrapper <PROJECT> <SESSION_NAME> <MESSAGE> [options]")
-		fmt.Println("   or: opencode_wrapper <PROJECT> <SESSION_NAME> /wait")
-		fmt.Println("   or: opencode_wrapper <PROJECT> <SESSION_NAME> /status")
+		fmt.Println("Usage: opencode_skill <PROJECT> <SESSION_NAME> <MESSAGE> [options]")
+		fmt.Println("   or: opencode_skill <PROJECT> <SESSION_NAME> /wait")
+		fmt.Println("   or: opencode_skill <PROJECT> <SESSION_NAME> /status")
 		os.Exit(1)
 	}
 
@@ -168,7 +168,7 @@ func main() {
 			}
 		}
 		fmt.Println("\nTo create a new session, run:")
-		fmt.Println("  opencode_wrapper init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
+		fmt.Println("  opencode_skill init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
 		os.Exit(1)
 	}
 
@@ -278,11 +278,11 @@ func parseModel(m string) api.ModelDetails {
 
 func printUsage() {
 	fmt.Println("Usage:")
-	fmt.Println("  opencode_wrapper start")
-	fmt.Println("  opencode_wrapper stop")
-	fmt.Println("  opencode_wrapper restart")
-	fmt.Println("  opencode_wrapper init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
-	fmt.Println("  opencode_wrapper <PROJECT> <SESSION_NAME> <MESSAGE> [options]")
-	fmt.Println("  opencode_wrapper <PROJECT> <SESSION_NAME> /wait")
-	fmt.Println("  opencode_wrapper <PROJECT> <SESSION_NAME> /status")
+	fmt.Println("  opencode_skill start")
+	fmt.Println("  opencode_skill stop")
+	fmt.Println("  opencode_skill restart")
+	fmt.Println("  opencode_skill init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
+	fmt.Println("  opencode_skill <PROJECT> <SESSION_NAME> <MESSAGE> [options]")
+	fmt.Println("  opencode_skill <PROJECT> <SESSION_NAME> /wait")
+	fmt.Println("  opencode_skill <PROJECT> <SESSION_NAME> /status")
 }

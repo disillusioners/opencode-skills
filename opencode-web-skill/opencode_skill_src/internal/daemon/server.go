@@ -11,9 +11,9 @@ import (
 	"strings"
 	"syscall"
 
-	"opencode_wrapper/internal/api"
-	"opencode_wrapper/internal/config"
-	"opencode_wrapper/internal/manager"
+	"opencode_skill/internal/api"
+	"opencode_skill/internal/config"
+	"opencode_skill/internal/manager"
 )
 
 type Server struct {

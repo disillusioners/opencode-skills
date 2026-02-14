@@ -8,7 +8,7 @@ import (
 	"log"
 	"net"
 	"net/url"
-	"opencode_wrapper/internal/config"
+	"opencode_skill/internal/config"
 	"strconv"
 	"strings"
 	"time"

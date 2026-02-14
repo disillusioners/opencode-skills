@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"opencode_wrapper/internal/config"
+	"opencode_skill/internal/config"
 )
 
 func freePort() (int, error) {
