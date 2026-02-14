@@ -11,6 +11,7 @@ import (
 	"opencode_wrapper/internal/config"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Client struct {
@@ -120,11 +121,14 @@ func (c *Client) sendRequest(method string, u string, payload interface{}) ([]by
 		host = host + ":80"
 	}
 
-	conn, err := net.Dial("tcp", host)
+	conn, err := net.DialTimeout("tcp", host, 30*time.Second)
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
+
+	// Set read/write deadlines
+	conn.SetDeadline(time.Now().Add(10 * time.Minute))
 
 	// Prepare Body
 	var bodyBytes []byte

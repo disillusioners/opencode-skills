@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -48,53 +49,56 @@ func initDB() {
 }
 
 func restartDaemon() {
-	// Try to stop existing daemon
-	pidData, err := os.ReadFile(config.PidFile)
-	if err == nil {
+	// Find and kill process using the daemon port
+	fmt.Printf("Checking for process on port %d...\n", config.DaemonPort)
+
+	// Use lsof to find process using the port
+	cmd := exec.Command("lsof", "-ti", fmt.Sprintf(":%d", config.DaemonPort))
+	output, err := cmd.Output()
+
+	if err == nil && len(output) > 0 {
+		pidStr := strings.TrimSpace(string(output))
 		var pid int
-		fmt.Sscanf(string(pidData), "%d", &pid)
+		fmt.Sscanf(pidStr, "%d", &pid)
 
-		// Check if process exists and kill it
-		process, err := os.FindProcess(pid)
-		if err == nil {
-			fmt.Printf("Stopping existing daemon (PID: %d)...\n", pid)
-			process.Signal(syscall.SIGTERM)
-
-			// Wait a bit for graceful shutdown
-			for i := 0; i < 10; i++ {
-				if err := process.Signal(syscall.Signal(0)); err != nil {
-					// Process no longer exists
-					break
-				}
-				fmt.Print(".")
-				os.Stdout.Sync()
-				time.Sleep(100 * time.Millisecond)
+		if pid > 0 {
+			fmt.Printf("Killing existing daemon (PID: %d)...\n", pid)
+			process, err := os.FindProcess(pid)
+			if err == nil {
+				process.Signal(syscall.SIGKILL)
+				time.Sleep(500 * time.Millisecond)
 			}
-			fmt.Println()
 		}
 	}
 
-	// Start new daemon
-	fmt.Println("Starting new daemon...")
-	d := daemon.NewServer()
-	d.Start()
+	// Clean up PID file if exists
+	os.Remove(config.PidFile)
+
+	// Start new daemon in background
+	fmt.Println("Starting new daemon in background...")
+	executable, _ := os.Executable()
+	cmd = exec.Command(executable, "--daemon")
+	cmd.Dir = config.ProjectRoot
+	_ = cmd.Start()
 }
 
 func main() {
-	initDB()
-	defer db.Close()
-
 	isDaemon := flag.Bool("daemon", false, "Run as daemon")
 	agent := flag.String("agent", config.DefaultAgent, "Agent name")
 	model := flag.String("model", "zai-coding-plan/glm-5", "Model ID")
 
 	flag.Parse()
 
+	// Daemon doesn't need database access
 	if *isDaemon {
 		d := daemon.NewServer()
 		d.Start()
 		return
 	}
+
+	// Only client commands need database
+	initDB()
+	defer db.Close()
 
 	args := flag.Args()
 	if len(args) < 1 {
