@@ -1,3 +1,4 @@
 /opencode-dev/*
 *.pyc
 .sisyphus/*
+opencode-web-skill/opencode_wrapper_go/opencode_wrapper

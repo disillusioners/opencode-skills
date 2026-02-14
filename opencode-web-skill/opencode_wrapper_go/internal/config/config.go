@@ -1,77 +1,77 @@
 package config
 
 import (
-    "os"
-    "path/filepath"
-    "time"
+	"os"
+	"path/filepath"
+	"time"
 )
 
 // OpenCode Configuration
 const (
-    OpenCodeURL  = "http://127.0.0.1:4096"
-    DefaultAgent = "sisyphus"
-    DefaultModel = "zai-coding-plan/glm-5"
+	OpenCodeURL  = "http://127.0.0.1:4096"
+	DefaultAgent = "sisyphus"
+	DefaultModel = "zai-coding-plan/glm-5"
 )
 
 // Daemon Configuration
 const (
-    DaemonHost = "127.0.0.1"
-    DaemonPort = 44111
+	DaemonHost = "127.0.0.1"
+	DaemonPort = 44111
 )
 
 // Timing
 const (
-    PollInterval   = 2 * time.Second
-    ClientTimeout  = 10 * time.Minute
-    AutoFixTimeout = 15 * time.Minute
+	PollInterval   = 2 * time.Second
+	ClientTimeout  = 10 * time.Minute
+	AutoFixTimeout = 15 * time.Minute
 )
 
 // Paths
 var (
-    ProjectRoot    string
-    WrapperDir     string
-    PidFile        string
-    SessionMapFile string
+	ProjectRoot    string
+	WrapperDir     string
+	PidFile        string
+	SessionMapFile string
 )
 
 func init() {
-    var err error
-    ProjectRoot, err = getProjectRoot()
-    if err != nil {
-        // Fallback to CWD if project root cannot be determined
-        ProjectRoot, _ = os.Getwd()
-    }
+	var err error
+	ProjectRoot, err = getProjectRoot()
+	if err != nil {
+		// Fallback to CWD if project root cannot be determined
+		ProjectRoot, _ = os.Getwd()
+	}
 
-    homeDir, _ := os.UserHomeDir()
-    WrapperDir = filepath.Join(homeDir, ".opencode_wrapper")
-    
-    // Ensure wrapper directory exists
-    if _, err := os.Stat(WrapperDir); os.IsNotExist(err) {
-        _ = os.MkdirAll(WrapperDir, 0755)
-    }
+	homeDir, _ := os.UserHomeDir()
+	WrapperDir = filepath.Join(homeDir, ".opencode_wrapper")
 
-    PidFile = filepath.Join(WrapperDir, "daemon.pid")
-    SessionMapFile = filepath.Join(WrapperDir, "sessions.json")
+	// Ensure wrapper directory exists
+	if _, err := os.Stat(WrapperDir); os.IsNotExist(err) {
+		_ = os.MkdirAll(WrapperDir, 0755)
+	}
+
+	PidFile = filepath.Join(WrapperDir, "daemon.pid")
+	SessionMapFile = filepath.Join(WrapperDir, "sessions.db")
 }
 
 func getProjectRoot() (string, error) {
-    cwd, err := os.Getwd()
-    if err != nil {
-        return "", err
-    }
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
 
-    current := cwd
-    for {
-        gitPath := filepath.Join(current, ".git")
-        if _, err := os.Stat(gitPath); err == nil {
-            return current, nil
-        }
+	current := cwd
+	for {
+		gitPath := filepath.Join(current, ".git")
+		if _, err := os.Stat(gitPath); err == nil {
+			return current, nil
+		}
 
-        parent := filepath.Dir(current)
-        if parent == current {
-            break
-        }
-        current = parent
-    }
-    return cwd, nil
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return cwd, nil
 }

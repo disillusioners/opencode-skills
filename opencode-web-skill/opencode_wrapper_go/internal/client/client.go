@@ -200,7 +200,13 @@ func (c *Client) Status() {
 	fmt.Printf("  SESSION STATUS: %s\n", state)
 	fmt.Println(strings.Repeat("=", 40))
 
-	if qs, ok := data["questions"].([]interface{}); ok && len(qs) > 0 {
+	// Safely get questions
+	var qs []interface{}
+	if qSlice, ok := data["questions"].([]interface{}); ok {
+		qs = qSlice
+	}
+
+	if len(qs) > 0 {
 		fmt.Println("\n[QUESTIONS PENDING]")
 		c.printQuestions(qs)
 	}
@@ -212,7 +218,7 @@ func (c *Client) Status() {
 		fmt.Println(string(formatted))
 	}
 
-	if state == "IDLE" && len(data["questions"].([]interface{})) == 0 && latestResp == nil {
+	if state == "IDLE" && len(qs) == 0 && latestResp == nil {
 		fmt.Println("\nSession is idle with no pending work.")
 	} else if state == "BUSY" {
 		fmt.Println("\nSession is currently processing...")

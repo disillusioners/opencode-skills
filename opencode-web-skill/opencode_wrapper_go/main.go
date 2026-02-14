@@ -1,14 +1,15 @@
 package main
 
 import (
-	"encoding/json"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
+
+	_ "github.com/mattn/go-sqlite3"
 
 	"opencode_wrapper/internal/api"
 	"opencode_wrapper/internal/client"
@@ -17,11 +18,35 @@ import (
 )
 
 type SessionData struct {
-	ID         string `json:"id"`
-	WorkingDir string `json:"working_dir"`
+	ID         string
+	WorkingDir string
+}
+
+var db *sql.DB
+
+func initDB() {
+	var err error
+	db, err = sql.Open("sqlite3", config.SessionMapFile)
+	if err != nil {
+		log.Fatalf("Failed to open database: %v", err)
+	}
+
+	createTableSQL := `CREATE TABLE IF NOT EXISTS sessions (
+		"name" TEXT NOT NULL PRIMARY KEY,
+		"id" TEXT,
+		"working_dir" TEXT
+	);`
+
+	_, err = db.Exec(createTableSQL)
+	if err != nil {
+		log.Fatalf("Failed to create table: %v", err)
+	}
 }
 
 func main() {
+	initDB()
+	defer db.Close()
+
 	isDaemon := flag.Bool("daemon", false, "Run as daemon")
 	agent := flag.String("agent", config.DefaultAgent, "Agent name")
 	model := flag.String("model", "zai-coding-plan/glm-5", "Model ID")
@@ -175,36 +200,23 @@ func parseModel(m string) api.ModelDetails {
 	return api.ModelDetails{ProviderID: "zai-coding-plan", ModelID: m}
 }
 
-func loadSessions() map[string]SessionData {
-	sessions := make(map[string]SessionData)
-	content, err := os.ReadFile(config.SessionMapFile)
-	if err == nil {
-		// Try unmarshal to new format
-		if err := json.Unmarshal(content, &sessions); err != nil {
-			// Fallback: try legacy map[string]string?
-			// If we are migrating, we might want to support it, but user said "new impl won't use CWD anymore"
-			// and requires init-session manually.
-			// Let's assume clean state or manual fix if format mismatches.
-			// Or just ignore errors.
-		}
-	}
-	return sessions
-}
-
-func saveSessions(sessions map[string]SessionData) {
-	bytes, _ := json.MarshalIndent(sessions, "", "  ")
-	os.WriteFile(config.SessionMapFile, bytes, 0644)
-}
-
 func getSession(name string) (SessionData, bool) {
-	sessions := loadSessions()
-	data, ok := sessions[name]
-	return data, ok
+	var id, workingDir string
+	row := db.QueryRow("SELECT id, working_dir FROM sessions WHERE name = ?", name)
+	err := row.Scan(&id, &workingDir)
+	if err == sql.ErrNoRows {
+		return SessionData{}, false
+	} else if err != nil {
+		log.Printf("Error querying session: %v", err)
+		return SessionData{}, false
+	}
+	return SessionData{ID: id, WorkingDir: workingDir}, true
 }
 
 func initSession(name, workingDir string) {
-	sessions := loadSessions()
-	if _, ok := sessions[name]; ok {
+	// Check if exists
+	_, exists := getSession(name)
+	if exists {
 		fmt.Printf("Session '%s' already exists. Overwrite? (y/N): ", name)
 		var response string
 		fmt.Scanln(&response)
@@ -219,33 +231,50 @@ func initSession(name, workingDir string) {
 		log.Fatalf("Failed to create session: %v", err)
 	}
 
-	sessions[name] = SessionData{
-		ID:         id,
-		WorkingDir: workingDir,
+	// Upsert
+	statement, err := db.Prepare("INSERT OR REPLACE INTO sessions (name, id, working_dir) VALUES (?, ?, ?)")
+	if err != nil {
+		log.Fatalf("Failed to prepare statement: %v", err)
 	}
-	saveSessions(sessions)
+	_, err = statement.Exec(name, id, workingDir)
+	if err != nil {
+		log.Fatalf("Failed to save session: %v", err)
+	}
+
 	fmt.Printf("Session '%s' initialized in %s\n", name, workingDir)
 }
 
 func listSessions() {
-	sessions := loadSessions()
+	rows, err := db.Query("SELECT name, working_dir FROM sessions ORDER BY name")
+	if err != nil {
+		log.Printf("Failed to list sessions: %v", err)
+		return
+	}
+	defer rows.Close()
+
+	var sessions []struct {
+		Name       string
+		WorkingDir string
+	}
+
+	for rows.Next() {
+		var s struct {
+			Name       string
+			WorkingDir string
+		}
+		if err := rows.Scan(&s.Name, &s.WorkingDir); err == nil {
+			sessions = append(sessions, s)
+		}
+	}
+
 	if len(sessions) == 0 {
 		fmt.Println("No active sessions found.")
 		return
 	}
 
 	fmt.Println("Recent sessions:")
-
-	// Sort by name for consistent output
-	names := make([]string, 0, len(sessions))
-	for name := range sessions {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		data := sessions[name]
-		fmt.Printf("  - %-20s (Dir: %s)\n", name, data.WorkingDir)
+	for _, s := range sessions {
+		fmt.Printf("  - %-20s (Dir: %s)\n", s.Name, s.WorkingDir)
 	}
 }
 
