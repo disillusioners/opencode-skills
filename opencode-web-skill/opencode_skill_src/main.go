@@ -294,6 +294,10 @@ func parseModel(m string) api.ModelDetails {
 	return api.ModelDetails{ProviderID: "zai-coding-plan", ModelID: m}
 }
 
+func formatSubmittedMessage(project, session string) string {
+	return fmt.Sprintf("[SUBMITTED] Run: opencode_skill %s %s /wait", project, session)
+}
+
 func printUsage() {
 	fmt.Println("Usage:")
 	fmt.Println("  opencode_skill start")
