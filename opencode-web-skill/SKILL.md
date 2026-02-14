@@ -70,6 +70,11 @@ If the agent asks a question (e.g., requires clarification), the wrapper will pr
     Options available.
 ```
 
+**CRITICAL INSTRUCTION**: When a question is received:
+1.  **Suggest** the best answer to the user based on context.
+2.  **Ask** the user for confirmation.
+3.  **DO NOT** automatically execute the `/answer` command unless the user explicitly tells you to "auto-answer" or "decide for me".
+
 **To Answer:**
 ```bash
 # Answer with text or option label

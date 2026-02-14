@@ -97,6 +97,7 @@ class SessionManager(Thread):
                 if not self.questions:
                     if self.worker and self.worker.is_alive():
                         self.state = "BUSY"
+                        self.task_start_time = time.time()
                     else:
                         self.state = "IDLE"
             except Exception as e:
@@ -140,6 +141,9 @@ class SessionManager(Thread):
             self.latest_response = {"result": None, "error": f"Fix failed: {e}"}
 
     def _check_auto_fix(self):
+        if self.questions:
+            return
+
         if self.state == "BUSY" and self.worker and self.worker.is_alive():
             elapsed = time.time() - self.task_start_time
             if elapsed > AUTO_FIX_TIMEOUT:
