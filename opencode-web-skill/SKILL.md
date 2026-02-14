@@ -113,7 +113,7 @@ opencode_skill <PROJECT> <SESSION_NAME> /answer "ESLint" "Jest"
 **Plan & Execute (For high complexity tasks that require planning)**
 1.  **Initialize**: `opencode_skill init-session myapp feature-A /path/to/project`
 2.  **Plan**: `opencode_skill "myapp:feature-A" "Make a plan..." -agent prometheus`
-3.  **Refine**: `opencode_skill "myapp:feature-A" "Feedback..." -agent prometheus`
+3.  **Refine**: `opencode_skill "myapp:feature-A" "Feedback..." -agent prometheus` (if needed)
 4.  **Implement**: `opencode_skill "myapp:feature-A" "/start-work" -agent atlas`
 5.  **Wait (if long)**: `opencode_skill "myapp:feature-A" /wait`
 6.  **Answer**: `opencode_skill "myapp:feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
