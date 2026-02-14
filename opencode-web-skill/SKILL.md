@@ -107,22 +107,15 @@ opencode_skill <PROJECT> <SESSION_NAME> /answer "ESLint" "Jest"
 
 **Simple Workflow (For simple tasks without planning)**
 1.  **Initialize**: `opencode_skill init-session myapp feature-A /path/to/project`
-2.  **Request**: `opencode_skill "myapp:feature-A" "Your request here" -agent sisyphus`
-    - Returns immediately with `[SUBMITTED]` confirmation
-3.  **Get Results**: `opencode_skill "myapp:feature-A" /wait`
-    - Blocks until daemon completes (up to 10 minutes)
-4.  **Answer**: `opencode_skill "myapp:feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
-
+2.  **Request**: `opencode_skill myapp feature-A "Your request here" -agent sisyphus`
+3.  **Answer**: `opencode_skill myapp feature-A /answer "Option 1" "Option 2"` 
+4.  **Wait until completion**: `opencode_skill myapp feature-A /wait`
 
 **Plan & Execute (For high complexity tasks that require planning)**
 1.  **Initialize**: `opencode_skill init-session myapp feature-A /path/to/project`
-2.  **Plan**: `opencode_skill "myapp:feature-A" "Make a plan..." -agent prometheus`
-    - Returns immediately with `[SUBMITTED]` confirmation
-3.  **Get Plan**: `opencode_skill "myapp:feature-A" /wait` (to retrieve the plan)
-4.  **Refine**: `opencode_skill "myapp:feature-A" "Feedback..." -agent prometheus` (if needed)
-    - Returns immediately with `[SUBMITTED]` confirmation
-5.  **Refine Results**: `opencode_skill "myapp:feature-A" /wait` (if refining)
-6.  **Implement**: `opencode_skill "myapp:feature-A" "/start-work" -agent atlas`
-    - Returns immediately with `[SUBMITTED]` confirmation
-7.  **Get Results**: `opencode_skill "myapp:feature-A" /wait`
-8.  **Answer**: `opencode_skill "myapp:feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
+2.  **Plan**: `opencode_skill myapp feature-A "Make a plan..." -agent prometheus`
+3.  **Answer multiple questions**: `opencode_skill myapp feature-A /answer "Option 1" "Option 2"`
+4. **Answer a special question/choice: Deep review or Start work**: This answer based on your decision, normally high complexity tasks require deep review, low complexity tasks prefer start work.
+5.  **When response message have explicitly guide to run command /start-work**: `opencode_skill myapp feature-A "/start-work" -agent atlas` (Note:from this point always use atlas agent on this session)
+6.  **Wait until completion**: `opencode_skill myapp feature-A /wait`
+7. **Ask for clean up finished plan and boulder.json**: `opencode_skill myapp feature-A "Clean up finished plan and boulder.json"` -agent atlas
