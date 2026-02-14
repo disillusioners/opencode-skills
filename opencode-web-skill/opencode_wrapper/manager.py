@@ -38,8 +38,8 @@ class SessionManager(Thread):
                 if self.state == "BUSY":
                     self.state = "IDLE"
 
-            # 3. Poll Questions (Throttle to 2s)
-            if time.time() - self.last_activity > 3.0:
+            # 3. Poll Questions (Throttle to 5s)
+            if time.time() - self.last_activity > 5.0:
                  self._poll_questions()
                  self._check_auto_fix()
                  self.last_activity = time.time()
