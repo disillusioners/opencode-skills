@@ -44,14 +44,14 @@ type workerResult struct {
 	Error  error
 }
 
-func NewSessionManager(sessionID string) *SessionManager {
+func NewSessionManager(sessionID string, workingDir string) *SessionManager {
 	return &SessionManager{
 		SessionID:      sessionID,
 		State:          StateIdle,
 		inputChan:      make(chan Request, 10),
 		stopChan:       make(chan struct{}),
 		workerDoneChan: make(chan workerResult, 1),
-		client:         api.NewClient(),
+		client:         api.NewClient(workingDir),
 		lastActivity:   time.Now(),
 	}
 }

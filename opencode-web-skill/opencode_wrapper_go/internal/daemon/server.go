@@ -107,10 +107,18 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	case "START_SESSION":
 		if _, exists := s.sessions[req.SessionID]; !exists {
-			sm := manager.NewSessionManager(req.SessionID)
+			workingDir, _ := req.Payload["working_dir"].(string)
+			if workingDir == "" {
+				// Fallback or error?
+				// For backwards compatibility or default behavior, perhaps default to ProjectRoot, but user said "won't use current working dir anymore"
+				// But daemon's ProjectRoot might be different from client's intended working dir if client is different.
+				// But we are in the same binary/package structure mostly.
+				workingDir = config.ProjectRoot
+			}
+			sm := manager.NewSessionManager(req.SessionID, workingDir)
 			sm.Start()
 			s.sessions[req.SessionID] = sm
-			log.Printf("Started manager for session %s", req.SessionID)
+			log.Printf("Started manager for session %s with dir %s", req.SessionID, workingDir)
 		}
 		response = map[string]interface{}{"status": "ok", "message": "Session managed"}
 

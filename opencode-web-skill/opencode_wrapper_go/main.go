@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"opencode_wrapper/internal/api"
@@ -14,12 +16,14 @@ import (
 	"opencode_wrapper/internal/daemon"
 )
 
+type SessionData struct {
+	ID         string `json:"id"`
+	WorkingDir string `json:"working_dir"`
+}
+
 func main() {
 	isDaemon := flag.Bool("daemon", false, "Run as daemon")
 	agent := flag.String("agent", config.DefaultAgent, "Agent name")
-	// Model handling might need refinement but simple string for now
-	// In python: --model default implies internal logic.
-	// Here we can accept --model provider/model or just model
 	model := flag.String("model", "zai-coding-plan/glm-5", "Model ID")
 
 	flag.Parse()
@@ -32,29 +36,51 @@ func main() {
 
 	args := flag.Args()
 	if len(args) < 1 {
-		fmt.Println("Usage: opencode_wrapper <SESSION_NAME> <MESSAGE> [options]")
+		printUsage()
 		os.Exit(1)
 	}
 
+	command := args[0]
+
+	if command == "init-session" {
+		if len(args) < 3 {
+			fmt.Println("Usage: opencode_wrapper init-session <SESSION_NAME> <WORKING_DIR>")
+			os.Exit(1)
+		}
+		sessionName := args[1]
+		workingDir := args[2]
+
+		absDir, err := filepath.Abs(workingDir)
+		if err != nil {
+			log.Fatalf("Invalid working directory: %v", err)
+		}
+
+		initSession(sessionName, absDir)
+		return
+	}
+
+	// Normal run: <SESSION_NAME> [MESSAGE...]
 	sessionName := args[0]
 	messageParts := args[1:]
 
-	// Resolve Session ID
-	// We need a helper for this (reading/writing session map)
-	sessionID := resolveSession(sessionName)
+	sessionData, ok := getSession(sessionName)
+	if !ok {
+		fmt.Printf("Session '%s' not found.\n", sessionName)
+		listSessions()
+		fmt.Println("\nTo create a new session, run:")
+		fmt.Println("  opencode_wrapper init-session <SESSION_NAME> <WORKING_DIR>")
+		os.Exit(1)
+	}
 
-	c := client.NewClient(sessionID)
+	c := client.NewClient(sessionData.ID)
 
-	// Ensure session is started in daemon
-	_, err := c.SendRequest("START_SESSION", nil)
+	// Ensure session is started in daemon with correct working dir
+	_, err := c.SendRequest("START_SESSION", map[string]string{"working_dir": sessionData.WorkingDir})
 	if err != nil {
 		log.Fatalf("Failed to start session: %v", err)
 	}
 
 	if len(messageParts) == 0 {
-		// Just checking? Or error?
-		// If no message, maybe just status?
-		// Python wrapper demanded message.
 		fmt.Println("No message provided.")
 		return
 	}
@@ -71,12 +97,6 @@ func main() {
 			fmt.Println("Usage: /answer <answer_text> ...")
 			return
 		}
-
-		// We need the request ID. Get Status first.
-		// Similar logic to python client...
-		// For brevity, skipping full implementation of answer logic here
-		// But "Wait for result" loop needs to know if it should display questions.
-		// Let's implement basics.
 
 		// Get status to find Question ID
 		resp, _ := c.SendRequest("GET_STATUS", nil)
@@ -155,37 +175,84 @@ func parseModel(m string) api.ModelDetails {
 	return api.ModelDetails{ProviderID: "zai-coding-plan", ModelID: m}
 }
 
-func resolveSession(name string) string {
-	// Read map file
-	// Ideally lock file, but for now simple read/write
-	// Logic similar to python: read, check, if not exists -> create -> write
-
-	// Note: Creating session requires API call.
-	// Client struct has method? No, api client has.
-
-	// We can use api.NewClient() directly here.
-	apiClient := api.NewClient()
-
-	// Load existing
-	sessions := make(map[string]string)
+func loadSessions() map[string]SessionData {
+	sessions := make(map[string]SessionData)
 	content, err := os.ReadFile(config.SessionMapFile)
 	if err == nil {
-		json.Unmarshal(content, &sessions)
+		// Try unmarshal to new format
+		if err := json.Unmarshal(content, &sessions); err != nil {
+			// Fallback: try legacy map[string]string?
+			// If we are migrating, we might want to support it, but user said "new impl won't use CWD anymore"
+			// and requires init-session manually.
+			// Let's assume clean state or manual fix if format mismatches.
+			// Or just ignore errors.
+		}
+	}
+	return sessions
+}
+
+func saveSessions(sessions map[string]SessionData) {
+	bytes, _ := json.MarshalIndent(sessions, "", "  ")
+	os.WriteFile(config.SessionMapFile, bytes, 0644)
+}
+
+func getSession(name string) (SessionData, bool) {
+	sessions := loadSessions()
+	data, ok := sessions[name]
+	return data, ok
+}
+
+func initSession(name, workingDir string) {
+	sessions := loadSessions()
+	if _, ok := sessions[name]; ok {
+		fmt.Printf("Session '%s' already exists. Overwrite? (y/N): ", name)
+		var response string
+		fmt.Scanln(&response)
+		if strings.ToLower(response) != "y" {
+			return
+		}
 	}
 
-	if id, ok := sessions[name]; ok {
-		return id
-	}
-
-	// Create new
+	apiClient := api.NewClient(workingDir)
 	id, err := apiClient.CreateSession(name)
 	if err != nil {
 		log.Fatalf("Failed to create session: %v", err)
 	}
 
-	sessions[name] = id
-	bytes, _ := json.MarshalIndent(sessions, "", "  ")
-	os.WriteFile(config.SessionMapFile, bytes, 0644)
+	sessions[name] = SessionData{
+		ID:         id,
+		WorkingDir: workingDir,
+	}
+	saveSessions(sessions)
+	fmt.Printf("Session '%s' initialized in %s\n", name, workingDir)
+}
 
-	return id
+func listSessions() {
+	sessions := loadSessions()
+	if len(sessions) == 0 {
+		fmt.Println("No active sessions found.")
+		return
+	}
+
+	fmt.Println("Recent sessions:")
+
+	// Sort by name for consistent output
+	names := make([]string, 0, len(sessions))
+	for name := range sessions {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		data := sessions[name]
+		fmt.Printf("  - %-20s (Dir: %s)\n", name, data.WorkingDir)
+	}
+}
+
+func printUsage() {
+	fmt.Println("Usage:")
+	fmt.Println("  opencode_wrapper init-session <SESSION_NAME> <WORKING_DIR>")
+	fmt.Println("  opencode_wrapper <SESSION_NAME> <MESSAGE> [options]")
+	fmt.Println("  opencode_wrapper <SESSION_NAME> /wait")
+	fmt.Println("  opencode_wrapper <SESSION_NAME> /status")
 }

@@ -14,12 +14,14 @@ import (
 )
 
 type Client struct {
-	BaseURL string
+	BaseURL    string
+	WorkingDir string
 }
 
-func NewClient() *Client {
+func NewClient(workingDir string) *Client {
 	return &Client{
-		BaseURL: config.OpenCodeURL,
+		BaseURL:    config.OpenCodeURL,
+		WorkingDir: workingDir,
 	}
 }
 
@@ -140,7 +142,7 @@ func (c *Client) sendRequest(method string, u string, payload interface{}) ([]by
 		"User-Agent: opencode-wrapper-go/1.0",
 		"Accept: */*",
 		"Content-Type: application/json",
-		fmt.Sprintf("x-opencode-directory: %s", config.ProjectRoot),
+		fmt.Sprintf("x-opencode-directory: %s", c.WorkingDir),
 		fmt.Sprintf("Content-Length: %d", len(bodyBytes)),
 		"Connection: close",
 		"\r\n",
