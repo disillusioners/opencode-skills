@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,8 +15,10 @@ import (
 )
 
 type Client struct {
-	SessionID string
-	conn      net.Conn
+	SessionID   string
+	Project     string
+	SessionName string
+	conn        net.Conn
 }
 
 // SessionData represents session information from daemon
@@ -32,8 +35,23 @@ func NewClient(sessionID string) *Client {
 	}
 }
 
+func NewClientWithMeta(sessionID, project, sessionName string) *Client {
+	return &Client{
+		SessionID:   sessionID,
+		Project:     project,
+		SessionName: sessionName,
+	}
+}
+
+func (c *Client) fullSessionRef() string {
+	if c.Project != "" && c.SessionName != "" {
+		return c.Project + " " + c.SessionName
+	}
+	return c.SessionID
+}
+
 func (c *Client) Connect() error {
-	addr := fmt.Sprintf("%s:%d", config.DaemonHost, config.DaemonPort)
+	addr := net.JoinHostPort(config.DaemonHost, strconv.Itoa(config.DaemonPort))
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return err
@@ -152,7 +170,7 @@ func (c *Client) WaitForResult() {
 
 	fmt.Println("\n[TIMEOUT] Message is taking longer than 10 minutes.")
 	fmt.Println("Daemon is still running in background.")
-	fmt.Printf("Run: `opencode_wrapper %s /wait` to check again.\n", c.SessionID)
+	fmt.Printf("Run: `opencode_wrapper %s /wait` to check again.\n", c.fullSessionRef())
 }
 
 func (c *Client) printQuestions(questions []interface{}) {
@@ -186,7 +204,7 @@ func (c *Client) printQuestions(questions []interface{}) {
 			}
 		}
 	}
-	fmt.Printf("\nRun: `opencode_wrapper %s /answer ...`\n", c.SessionID)
+	fmt.Printf("\nRun: `opencode_wrapper %s /answer ...`\n", c.fullSessionRef())
 }
 
 func (c *Client) Status() {

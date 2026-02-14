@@ -172,8 +172,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Now create the real client with session ID
-	c = client.NewClient(sessionData.ID)
+	// Now create the real client with session ID and metadata
+	c = client.NewClientWithMeta(sessionData.ID, project, sessionName)
 
 	// Ensure session is started in daemon with correct working dir
 	_, err = c.SendRequest("START_SESSION", map[string]string{"working_dir": sessionData.WorkingDir})

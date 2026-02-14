@@ -11,10 +11,10 @@ import (
 )
 
 type SessionData struct {
-	Project     string
-	SessionName string
-	ID          string
-	WorkingDir  string
+	Project     string `json:"project"`
+	SessionName string `json:"session_name"`
+	ID          string `json:"session_id"`
+	WorkingDir  string `json:"working_dir"`
 }
 
 var (

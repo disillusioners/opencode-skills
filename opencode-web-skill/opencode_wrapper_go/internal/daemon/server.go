@@ -67,7 +67,7 @@ func (s *Server) Start() error {
 		log.Printf("Recovered %d session(s) from registry", len(sessions))
 	}
 
-	addr := fmt.Sprintf("%s:%d", config.DaemonHost, s.port)
+	addr := net.JoinHostPort(config.DaemonHost, strconv.Itoa(s.port))
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %v", addr, err)
@@ -97,7 +97,7 @@ func (s *Server) Start() error {
 		}
 		go s.handleConnection(conn)
 	}
-	return nil
+
 }
 
 func (s *Server) Stop() {
@@ -328,7 +328,7 @@ func (s *Server) writePID() error {
 }
 
 func isDaemonRunning() bool {
-	addr := fmt.Sprintf("%s:%d", config.DaemonHost, config.DaemonPort)
+	addr := net.JoinHostPort(config.DaemonHost, strconv.Itoa(config.DaemonPort))
 	conn, err := net.Dial("tcp", addr)
 	if err == nil {
 		conn.Close()
