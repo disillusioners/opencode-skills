@@ -48,19 +48,21 @@ opencode_skill <PROJECT> <SESSION_NAME> <MESSAGE> [options]
     - `-agent <NAME>`: Switch agent (Default: `sisyphus`, Options: `prometheus`, `atlas`).
     - `--help`: Show all available options.
 
-### Patience on timeout
-Commands will timeout after **10 minutes** on the client side, but the **Daemon keeps working**.
+### Non-Blocking Message Submission
+All message submissions (PROMPT, COMMAND, ANSWER) return **immediately** with a confirmation:
 
-If you see a timeout message:
 ```text
-[TIMEOUT] Message is taking longer than 10 minutes.
-Daemon is still running in background.
-Run: `opencode_skill <PROJECT> <SESSION_NAME> /wait` to check again.
+[SUBMITTED] Run: opencode_skill <PROJECT> <SESSION_NAME> /wait
 ```
-High complexity tasks may take longer than 10 minutes to complete. Use `/wait` to check the status of the daemon. (The `/wait` command also have 10 minutes timeout and run synchronously)
-When you using other terminal/console tool to call the wrapper script, please modify the timeout param of those tool call to more than 10 minutes to wait correctly.
 
-**To Reconnect:**
+The daemon continues processing in the background. Use `/wait` to retrieve results when ready.
+
+### Retrieving Results with `/wait`
+The `/wait` command is the primary way to get results from the daemon:
+- **Blocking**: Waits up to 10 minutes for the daemon to complete its work
+- **Non-blocking alternative**: Use `/status` to check if results are ready without waiting
+
+**To check for results:**
 ```bash
 opencode_skill <PROJECT> <SESSION_NAME> /wait
 ```
@@ -106,14 +108,21 @@ opencode_skill <PROJECT> <SESSION_NAME> /answer "ESLint" "Jest"
 **Simple Workflow (For simple tasks without planning)**
 1.  **Initialize**: `opencode_skill init-session myapp feature-A /path/to/project`
 2.  **Request**: `opencode_skill "myapp:feature-A" "Your request here" -agent sisyphus`
-3.  **Wait**: `opencode_skill "myapp:feature-A" /wait` (when needed)
+    - Returns immediately with `[SUBMITTED]` confirmation
+3.  **Get Results**: `opencode_skill "myapp:feature-A" /wait`
+    - Blocks until daemon completes (up to 10 minutes)
 4.  **Answer**: `opencode_skill "myapp:feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
 
 
 **Plan & Execute (For high complexity tasks that require planning)**
 1.  **Initialize**: `opencode_skill init-session myapp feature-A /path/to/project`
 2.  **Plan**: `opencode_skill "myapp:feature-A" "Make a plan..." -agent prometheus`
-3.  **Refine**: `opencode_skill "myapp:feature-A" "Feedback..." -agent prometheus` (if needed)
-4.  **Implement**: `opencode_skill "myapp:feature-A" "/start-work" -agent atlas`
-5.  **Wait (if long)**: `opencode_skill "myapp:feature-A" /wait`
-6.  **Answer**: `opencode_skill "myapp:feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
+    - Returns immediately with `[SUBMITTED]` confirmation
+3.  **Get Plan**: `opencode_skill "myapp:feature-A" /wait` (to retrieve the plan)
+4.  **Refine**: `opencode_skill "myapp:feature-A" "Feedback..." -agent prometheus` (if needed)
+    - Returns immediately with `[SUBMITTED]` confirmation
+5.  **Refine Results**: `opencode_skill "myapp:feature-A" /wait` (if refining)
+6.  **Implement**: `opencode_skill "myapp:feature-A" "/start-work" -agent atlas`
+    - Returns immediately with `[SUBMITTED]` confirmation
+7.  **Get Results**: `opencode_skill "myapp:feature-A" /wait`
+8.  **Answer**: `opencode_skill "myapp:feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
