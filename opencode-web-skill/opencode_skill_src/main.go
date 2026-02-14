@@ -233,7 +233,7 @@ func main() {
 		}
 
 		fmt.Printf("Answer status: %v\n", res["message"])
-		c.WaitForResult()
+		fmt.Printf("[SUBMITTED] Run: opencode_skill %s %s /wait\n", project, sessionName)
 
 	} else if strings.HasPrefix(cmd, "/") {
 		// Command
@@ -259,7 +259,7 @@ func main() {
 		}
 
 		fmt.Printf("Command sent: %v\n", res["message"])
-		c.WaitForResult()
+		fmt.Printf("[SUBMITTED] Run: opencode_skill %s %s /wait\n", project, sessionName)
 
 	} else {
 		// Prompt
@@ -282,7 +282,7 @@ func main() {
 		}
 
 		fmt.Printf("Prompt sent: %v\n", res["message"])
-		c.WaitForResult()
+		fmt.Printf("[SUBMITTED] Run: opencode_skill %s %s /wait\n", project, sessionName)
 	}
 }
 
