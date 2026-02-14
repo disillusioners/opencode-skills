@@ -11,17 +11,30 @@ This skill controls OpenCode's agents (Sisyphus, Prometheus, Atlas) via the web 
 ## Prerequisites
 
 1.  **Binary**: Use `opencode_skill` for all interactions. Ensure it is in your PATH (e.g., `~/bin/opencode_skill`).
-2.  **Working Directory**: You **MUST** change your current working directory to the project root before running the command. The tool detects the project root from the CWD.
+2.  **Session Initialization**: You **MUST** initialize a session with a target working directory before sending commands. The session remembers this directory, so you do not need to be in the project root when running subsequent commands.
 
 ## Usage
 
+### 1. Initialize a Session
 **Syntax:**
 ```bash
-cd <PROJECT_ROOT>
+opencode_skill init-session <SESSION_NAME> <WORKING_DIR>
+```
+- `<SESSION_NAME>`: Unique name for your session (e.g., `planning`, `task-1`).
+- `<WORKING_DIR>`: Absolute path to the project root directory where the agent should work.
+
+**Example:**
+```bash
+opencode_skill init-session my-feature /Users/me/projects/my-app
+```
+
+### 2. Send Commands
+**Syntax:**
+```bash
 opencode_skill <SESSION_NAME> <MESSAGE> [options]
 ```
 
-- `<SESSION_NAME>`: Unique name for your session (e.g., `planning`, `task-1`). **If a session with this name does not exist, a new one is automatically created.**
+- `<SESSION_NAME>`: The name of an initialized session.
 - `<MESSAGE>`: Text to send, or a command starting with `/`.
 - `[options]`:
     - `-agent <NAME>`: Switch agent (Default: `sisyphus`, Options: `prometheus`, `atlas`).
@@ -80,17 +93,19 @@ opencode_skill <SESSION_NAME> /answer "ESLint" "Jest"
 ```
 
 ## Workflows
-> **Reminder**: Ensure you are in the project root directory before running these commands (`cd /path/to/project`).
+> **Reminder**: Ensure you have initialized the session using `init-session` before running these commands.
 
 **Simple Workflow (For simple tasks)**
-1.  **Request**: `opencode_skill ... "feature-A" "Your request here" -agent sisyphus`
-2.  **Wait**: `opencode_skill ... "feature-A" /wait` (when needed)
-3.  **Answer**: `opencode_skill ... "feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
+1.  **Initialize**: `opencode_skill init-session "feature-A" /path/to/project`
+2.  **Request**: `opencode_skill "feature-A" "Your request here" -agent sisyphus`
+3.  **Wait**: `opencode_skill "feature-A" /wait` (when needed)
+4.  **Answer**: `opencode_skill "feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
 
 
 **Plan & Execute (For high complexity tasks that require planning)**
-1.  **Plan**: `opencode_skill ... "feature-A" "Make a plan..." -agent prometheus`
-2.  **Refine**: `opencode_skill ... "feature-A" "Feedback..." -agent prometheus`
-3.  **Implement**: `opencode_skill ... "feature-A" "/start-work" -agent atlas`
-4.  **Wait (if long)**: `opencode_skill ... "feature-A" /wait`
-5.  **Answer**: `opencode_skill ... "feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
+1.  **Initialize**: `opencode_skill init-session "feature-A" /path/to/project`
+2.  **Plan**: `opencode_skill "feature-A" "Make a plan..." -agent prometheus`
+3.  **Refine**: `opencode_skill "feature-A" "Feedback..." -agent prometheus`
+4.  **Implement**: `opencode_skill "feature-A" "/start-work" -agent atlas`
+5.  **Wait (if long)**: `opencode_skill "feature-A" /wait`
+6.  **Answer**: `opencode_skill "feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
