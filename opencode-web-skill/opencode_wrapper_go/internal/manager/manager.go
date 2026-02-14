@@ -60,6 +60,10 @@ func (sm *SessionManager) Start() {
 	go sm.loop()
 }
 
+func (sm *SessionManager) UpdateWorkingDir(workingDir string) {
+	sm.client = api.NewClient(workingDir)
+}
+
 func (sm *SessionManager) Stop() {
 	close(sm.stopChan)
 }
