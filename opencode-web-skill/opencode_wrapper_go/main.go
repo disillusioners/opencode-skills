@@ -65,7 +65,9 @@ func main() {
 			log.Fatalf("Failed to create registry: %v", err)
 		}
 		d := daemon.NewServer(registry)
-		d.Start()
+		if err := d.Start(); err != nil {
+			log.Fatalf("Failed to start daemon: %v", err)
+		}
 		return
 	}
 

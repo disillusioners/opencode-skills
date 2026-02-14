@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"opencode_wrapper/internal/api"
@@ -18,18 +20,36 @@ type Server struct {
 	sessions map[string]*manager.SessionManager
 	listener net.Listener
 	registry *Registry
+	port     int
 }
 
 func NewServer(registry *Registry) *Server {
 	return &Server{
 		sessions: make(map[string]*manager.SessionManager),
 		registry: registry,
+		port:     config.DaemonPort,
 	}
 }
 
-func (s *Server) Start() {
+func NewServerWithPort(registry *Registry, port int) *Server {
+	return &Server{
+		sessions: make(map[string]*manager.SessionManager),
+		registry: registry,
+		port:     port,
+	}
+}
+
+func (s *Server) Start() error {
+	// Clean up stale PID file if process is dead
+	cleanupStalePID()
+
+	// Check if daemon is already running
+	if isDaemonRunning() {
+		return fmt.Errorf("daemon is already running on port %d", s.port)
+	}
+
 	if err := s.writePID(); err != nil {
-		log.Fatalf("Failed to write PID file: %v", err)
+		return fmt.Errorf("failed to write PID file: %v", err)
 	}
 
 	// Auto-recover sessions from registry
@@ -47,10 +67,10 @@ func (s *Server) Start() {
 		log.Printf("Recovered %d session(s) from registry", len(sessions))
 	}
 
-	addr := fmt.Sprintf("%s:%d", config.DaemonHost, config.DaemonPort)
+	addr := fmt.Sprintf("%s:%d", config.DaemonHost, s.port)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.Fatalf("Failed to listen on %s: %v", addr, err)
+		return fmt.Errorf("failed to listen on %s: %v", addr, err)
 	}
 	s.listener = ln
 	log.Printf("Daemon listening on %s", addr)
@@ -69,7 +89,7 @@ func (s *Server) Start() {
 			// Check if closed
 			select {
 			case <-c:
-				return
+				return nil
 			default:
 				log.Printf("Accept error: %v", err)
 				continue
@@ -77,6 +97,7 @@ func (s *Server) Start() {
 		}
 		go s.handleConnection(conn)
 	}
+	return nil
 }
 
 func (s *Server) Stop() {
@@ -304,4 +325,55 @@ func (s *Server) sendError(conn net.Conn, msg string) {
 func (s *Server) writePID() error {
 	pid := os.Getpid()
 	return os.WriteFile(config.PidFile, []byte(fmt.Sprintf("%d", pid)), 0644)
+}
+
+func isDaemonRunning() bool {
+	addr := fmt.Sprintf("%s:%d", config.DaemonHost, config.DaemonPort)
+	conn, err := net.Dial("tcp", addr)
+	if err == nil {
+		conn.Close()
+		return true
+	}
+
+	pidBytes, err := os.ReadFile(config.PidFile)
+	if err != nil {
+		return false
+	}
+
+	pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes)))
+	if err != nil {
+		return false
+	}
+
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+
+	err = process.Signal(syscall.Signal(0))
+	return err == nil
+}
+
+func cleanupStalePID() {
+	pidBytes, err := os.ReadFile(config.PidFile)
+	if err != nil {
+		return
+	}
+
+	pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes)))
+	if err != nil {
+		os.Remove(config.PidFile)
+		return
+	}
+
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		os.Remove(config.PidFile)
+		return
+	}
+
+	err = process.Signal(syscall.Signal(0))
+	if err != nil {
+		os.Remove(config.PidFile)
+	}
 }
