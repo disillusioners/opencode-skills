@@ -226,6 +226,12 @@ func main() {
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
+
+		if status, ok := res["status"].(string); ok && status == "error" {
+			fmt.Printf("Error: %v\n", res["message"])
+			return
+		}
+
 		fmt.Printf("Answer status: %v\n", res["message"])
 		c.WaitForResult()
 
@@ -246,6 +252,12 @@ func main() {
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
+
+		if status, ok := res["status"].(string); ok && status == "error" {
+			fmt.Printf("Error: %v\n", res["message"])
+			return
+		}
+
 		fmt.Printf("Command sent: %v\n", res["message"])
 		c.WaitForResult()
 
@@ -263,6 +275,12 @@ func main() {
 			fmt.Printf("Error: %v\n", err) // e.g. "Session is busy"
 			return
 		}
+
+		if status, ok := res["status"].(string); ok && status == "error" {
+			fmt.Printf("Error: %v\n", res["message"])
+			return
+		}
+
 		fmt.Printf("Prompt sent: %v\n", res["message"])
 		c.WaitForResult()
 	}

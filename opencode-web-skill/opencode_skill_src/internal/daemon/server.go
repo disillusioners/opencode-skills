@@ -279,7 +279,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 				}
 
 				if state == manager.StateBusy && !isSpecial {
-					response = map[string]interface{}{"status": "error", "message": "Session is busy"}
+					response = map[string]interface{}{"status": "error", "message": "Session is busy. Please patience wait for the previous message result before send new message."}
 					break // break switch, send response
 				}
 			}
