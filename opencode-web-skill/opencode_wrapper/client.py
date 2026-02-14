@@ -152,7 +152,7 @@ class Client:
                 print("Error checking status via daemon.")
                 time.sleep(3)
         
-        print("\n[TIMEOUT] Message is taking longer than 5 minutes.")
+        print("\n[TIMEOUT] Message is taking longer than 10 minutes.")
         print("Daemon is still running in background.")
         print("Run: `python3 path_to/opencode_wrapper.py <session> /wait` to check again.")
 

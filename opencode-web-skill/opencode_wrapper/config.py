@@ -30,6 +30,6 @@ SESSION_MAP_FILE = WRAPPER_DIR / "sessions.json"
 
 # Timing
 POLL_INTERVAL = 2.0
-CLIENT_TIMEOUT = 300  # 5 minutes
-AUTO_FIX_TIMEOUT = 600 # 10 minutes
+CLIENT_TIMEOUT = 600  # 10 minutes
+AUTO_FIX_TIMEOUT = 900 # 15 minutes
 SHOW_LOGS = False

@@ -33,16 +33,16 @@ python3 opencode_wrapper.py <SESSION_NAME> <MESSAGE> [options]
     - `--help`: Show all available options.
 
 ### Patience on timeout
-Commands will timeout after **5 minutes** on the client side, but the **Daemon keeps working**.
+Commands will timeout after **10 minutes** on the client side, but the **Daemon keeps working**.
 
 If you see a timeout message:
 ```text
-[TIMEOUT] Message is taking longer than 5 minutes.
+[TIMEOUT] Message is taking longer than 10 minutes.
 Daemon is still running in background.
 Run: `python3 opencode_wrapper.py <session> /wait` to check again.
 ```
-High complexity tasks may take longer than 5 minutes to complete. Use `/wait` to check the status of the daemon. (The `/wait` command also have 5 minutes timeout and run synchronously)
-When you using other terminal/console tool to call the wrapper script, please modify the timeout param of those tool call to more than 5 minutes to wait correctly.
+High complexity tasks may take longer than 10 minutes to complete. Use `/wait` to check the status of the daemon. (The `/wait` command also have 10 minutes timeout and run synchronously)
+When you using other terminal/console tool to call the wrapper script, please modify the timeout param of those tool call to more than 10 minutes to wait correctly.
 
 **To Reconnect:**
 ```bash
@@ -59,7 +59,7 @@ python3 opencode_wrapper.py <SESSION_NAME> "Your request here"
 # Check status (non-blocking)
 python3 opencode_wrapper.py <SESSION_NAME> /status
 
-# Wait for result (blocking, up to 5 min)
+# Wait for result (blocking, up to 10 min)
 python3 opencode_wrapper.py <SESSION_NAME> /wait
 ```
 ### Interactive Questions
