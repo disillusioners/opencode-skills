@@ -18,23 +18,31 @@ This skill controls OpenCode's agents (Sisyphus, Prometheus, Atlas) via the web 
 ### 1. Initialize a Session
 **Syntax:**
 ```bash
-opencode_skill init-session <SESSION_NAME> <WORKING_DIR>
+opencode_skill init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>
 ```
-- `<SESSION_NAME>`: Unique name for your session (e.g., `planning`, `task-1`).
+- `<PROJECT>`: Project identifier (e.g., `myapp`, `website`, `api`).
+- `<SESSION_NAME>`: Task or feature name (e.g., `planning`, `task-1`, `bugfix`).
 - `<WORKING_DIR>`: Absolute path to the project root directory where the agent should work.
+
+The full session name will be created as `PROJECT:SESSION_NAME` (e.g., `myapp:task-1`). This reduces naming conflicts and helps organize sessions by project.
 
 **Example:**
 ```bash
-opencode_skill init-session my-feature /Users/me/projects/my-app
+opencode_skill init-session myapp feature-login /Users/me/projects/my-app
+# Creates session: myapp:feature-login
 ```
+
+**Re-initializing a Session:**
+If you run `init-session` with the same PROJECT and SESSION_NAME, the old OpenCode session will be automatically aborted and a new one created with updated settings. No confirmation is required (designed for agent use).
 
 ### 2. Send Commands
 **Syntax:**
 ```bash
-opencode_skill <SESSION_NAME> <MESSAGE> [options]
+opencode_skill <PROJECT> <SESSION_NAME> <MESSAGE> [options]
 ```
 
-- `<SESSION_NAME>`: The name of an initialized session.
+- `<PROJECT>`: The project identifier used when initializing the session.
+- `<SESSION_NAME>`: The session name used when initializing the session.
 - `<MESSAGE>`: Text to send, or a command starting with `/`.
 - `[options]`:
     - `-agent <NAME>`: Switch agent (Default: `sisyphus`, Options: `prometheus`, `atlas`).
@@ -47,14 +55,14 @@ If you see a timeout message:
 ```text
 [TIMEOUT] Message is taking longer than 10 minutes.
 Daemon is still running in background.
-Run: `opencode_skill <session> /wait` to check again.
+Run: `opencode_skill <PROJECT> <SESSION_NAME> /wait` to check again.
 ```
 High complexity tasks may take longer than 10 minutes to complete. Use `/wait` to check the status of the daemon. (The `/wait` command also have 10 minutes timeout and run synchronously)
 When you using other terminal/console tool to call the wrapper script, please modify the timeout param of those tool call to more than 10 minutes to wait correctly.
 
 **To Reconnect:**
 ```bash
-opencode_skill <SESSION_NAME> /wait
+opencode_skill <PROJECT> <SESSION_NAME> /wait
 ```
 
 ### Available Commands
@@ -62,13 +70,13 @@ opencode_skill <SESSION_NAME> /wait
 **Basic Flow:**
 ```bash
 # Send a message or prompt
-opencode_skill <SESSION_NAME> "Your request here"
+opencode_skill <PROJECT> <SESSION_NAME> "Your request here"
 
 # Check status (non-blocking)
-opencode_skill <SESSION_NAME> /status
+opencode_skill <PROJECT> <SESSION_NAME> /status
 
 # Wait for result (blocking, up to 10 min)
-opencode_skill <SESSION_NAME> /wait
+opencode_skill <PROJECT> <SESSION_NAME> /wait
 ```
 ### Interactive Questions
 If the agent asks a question (e.g., requires clarification), the wrapper will prompt you:
@@ -86,26 +94,26 @@ If the agent asks a question (e.g., requires clarification), the wrapper will pr
 **To Answer:**
 ```bash
 # Answer with text or option label
-opencode_skill <SESSION_NAME> /answer "ESLint"
+opencode_skill <PROJECT> <SESSION_NAME> /answer "ESLint"
 
 # If multiple questions are asked:
-opencode_skill <SESSION_NAME> /answer "ESLint" "Jest"
+opencode_skill <PROJECT> <SESSION_NAME> /answer "ESLint" "Jest"
 ```
 
 ## Workflows
 > **Reminder**: Ensure you have initialized the session using `init-session` before running these commands.
 
 **Simple Workflow (For simple tasks)**
-1.  **Initialize**: `opencode_skill init-session "feature-A" /path/to/project`
-2.  **Request**: `opencode_skill "feature-A" "Your request here" -agent sisyphus`
-3.  **Wait**: `opencode_skill "feature-A" /wait` (when needed)
-4.  **Answer**: `opencode_skill "feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
+1.  **Initialize**: `opencode_skill init-session myapp feature-A /path/to/project`
+2.  **Request**: `opencode_skill "myapp:feature-A" "Your request here" -agent sisyphus`
+3.  **Wait**: `opencode_skill "myapp:feature-A" /wait` (when needed)
+4.  **Answer**: `opencode_skill "myapp:feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
 
 
 **Plan & Execute (For high complexity tasks that require planning)**
-1.  **Initialize**: `opencode_skill init-session "feature-A" /path/to/project`
-2.  **Plan**: `opencode_skill "feature-A" "Make a plan..." -agent prometheus`
-3.  **Refine**: `opencode_skill "feature-A" "Feedback..." -agent prometheus`
-4.  **Implement**: `opencode_skill "feature-A" "/start-work" -agent atlas`
-5.  **Wait (if long)**: `opencode_skill "feature-A" /wait`
-6.  **Answer**: `opencode_skill "feature-A" /answer "Option 1" "Option 2"` (for multiple questions)
+1.  **Initialize**: `opencode_skill init-session myapp feature-A /path/to/project`
+2.  **Plan**: `opencode_skill "myapp:feature-A" "Make a plan..." -agent prometheus`
+3.  **Refine**: `opencode_skill "myapp:feature-A" "Feedback..." -agent prometheus`
+4.  **Implement**: `opencode_skill "myapp:feature-A" "/start-work" -agent atlas`
+5.  **Wait (if long)**: `opencode_skill "myapp:feature-A" /wait`
+6.  **Answer**: `opencode_skill "myapp:feature-A" /answer "Option 1" "Option 2"` (for multiple questions)

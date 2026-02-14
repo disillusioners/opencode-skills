@@ -34,9 +34,11 @@ func initDB() {
 	}
 
 	createTableSQL := `CREATE TABLE IF NOT EXISTS sessions (
-		"name" TEXT NOT NULL PRIMARY KEY,
+		"project" TEXT NOT NULL,
+		"session_name" TEXT NOT NULL,
 		"id" TEXT,
-		"working_dir" TEXT
+		"working_dir" TEXT,
+		PRIMARY KEY (project, session_name)
 	);`
 
 	_, err = db.Exec(createTableSQL)
@@ -108,32 +110,42 @@ func main() {
 	}
 
 	if command == "init-session" {
-		if len(args) < 3 {
-			fmt.Println("Usage: opencode_wrapper init-session <SESSION_NAME> <WORKING_DIR>")
+		if len(args) < 4 {
+			fmt.Println("Usage: opencode_wrapper init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
 			os.Exit(1)
 		}
-		sessionName := args[1]
-		workingDir := args[2]
+		project := args[1]
+		sessionName := args[2]
+		workingDir := args[3]
 
 		absDir, err := filepath.Abs(workingDir)
 		if err != nil {
 			log.Fatalf("Invalid working directory: %v", err)
 		}
 
-		initSession(sessionName, absDir)
+		initSession(project, sessionName, absDir)
 		return
 	}
 
-	// Normal run: <SESSION_NAME> [MESSAGE...]
-	sessionName := args[0]
-	messageParts := args[1:]
+	// Normal run: <PROJECT> <SESSION_NAME> [MESSAGE...]
+	if len(args) < 2 {
+		fmt.Println("Usage: opencode_wrapper <PROJECT> <SESSION_NAME> <MESSAGE> [options]")
+		fmt.Println("   or: opencode_wrapper <PROJECT> <SESSION_NAME> /wait")
+		fmt.Println("   or: opencode_wrapper <PROJECT> <SESSION_NAME> /status")
+		os.Exit(1)
+	}
 
-	sessionData, ok := getSession(sessionName)
+	project := args[0]
+	sessionName := args[1]
+	fullSessionName := fmt.Sprintf("%s:%s", project, sessionName)
+	messageParts := args[2:]
+
+	sessionData, ok := getSession(project, sessionName)
 	if !ok {
-		fmt.Printf("Session '%s' not found.\n", sessionName)
+		fmt.Printf("Session '%s' not found.\n", fullSessionName)
 		listSessions()
 		fmt.Println("\nTo create a new session, run:")
-		fmt.Println("  opencode_wrapper init-session <SESSION_NAME> <WORKING_DIR>")
+		fmt.Println("  opencode_wrapper init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
 		os.Exit(1)
 	}
 
@@ -240,9 +252,9 @@ func parseModel(m string) api.ModelDetails {
 	return api.ModelDetails{ProviderID: "zai-coding-plan", ModelID: m}
 }
 
-func getSession(name string) (SessionData, bool) {
+func getSession(project, sessionName string) (SessionData, bool) {
 	var id, workingDir string
-	row := db.QueryRow("SELECT id, working_dir FROM sessions WHERE name = ?", name)
+	row := db.QueryRow("SELECT id, working_dir FROM sessions WHERE project = ? AND session_name = ?", project, sessionName)
 	err := row.Scan(&id, &workingDir)
 	if err == sql.ErrNoRows {
 		return SessionData{}, false
@@ -253,11 +265,14 @@ func getSession(name string) (SessionData, bool) {
 	return SessionData{ID: id, WorkingDir: workingDir}, true
 }
 
-func initSession(name, workingDir string) {
+func initSession(project, sessionName, workingDir string) {
+	// Create full session name with project prefix for display
+	fullSessionName := fmt.Sprintf("%s:%s", project, sessionName)
+
 	// Check if exists and abort old session if needed
-	oldSession, exists := getSession(name)
+	oldSession, exists := getSession(project, sessionName)
 	if exists {
-		fmt.Printf("[INFO] Session '%s' already exists (ID: %s, Dir: %s)\n", name, oldSession.ID, oldSession.WorkingDir)
+		fmt.Printf("[INFO] Session '%s' already exists (ID: %s, Dir: %s)\n", fullSessionName, oldSession.ID, oldSession.WorkingDir)
 
 		// Abort the old OpenCode session to clean up resources
 		fmt.Printf("[INFO] Aborting old OpenCode session %s...\n", oldSession.ID)
@@ -274,28 +289,28 @@ func initSession(name, workingDir string) {
 		time.Sleep(2 * time.Second)
 	}
 
-	fmt.Printf("[INFO] Creating new session '%s' in %s...\n", name, workingDir)
+	fmt.Printf("[INFO] Creating new session '%s' in %s...\n", fullSessionName, workingDir)
 	apiClient := api.NewClient(workingDir)
-	id, err := apiClient.CreateSession(name)
+	id, err := apiClient.CreateSession(fullSessionName)
 	if err != nil {
 		log.Fatalf("Failed to create session: %v", err)
 	}
 
 	// Upsert
-	statement, err := db.Prepare("INSERT OR REPLACE INTO sessions (name, id, working_dir) VALUES (?, ?, ?)")
+	statement, err := db.Prepare("INSERT OR REPLACE INTO sessions (project, session_name, id, working_dir) VALUES (?, ?, ?, ?)")
 	if err != nil {
 		log.Fatalf("Failed to prepare statement: %v", err)
 	}
-	_, err = statement.Exec(name, id, workingDir)
+	_, err = statement.Exec(project, sessionName, id, workingDir)
 	if err != nil {
 		log.Fatalf("Failed to save session: %v", err)
 	}
 
-	fmt.Printf("[SUCCESS] Session '%s' initialized with ID: %s in %s\n", name, id, workingDir)
+	fmt.Printf("[SUCCESS] Session '%s' initialized with ID: %s in %s\n", fullSessionName, id, workingDir)
 }
 
 func listSessions() {
-	rows, err := db.Query("SELECT name, working_dir FROM sessions ORDER BY name")
+	rows, err := db.Query("SELECT project, session_name, working_dir FROM sessions ORDER BY project, session_name")
 	if err != nil {
 		log.Printf("Failed to list sessions: %v", err)
 		return
@@ -303,16 +318,18 @@ func listSessions() {
 	defer rows.Close()
 
 	var sessions []struct {
-		Name       string
-		WorkingDir string
+		Project     string
+		SessionName string
+		WorkingDir  string
 	}
 
 	for rows.Next() {
 		var s struct {
-			Name       string
-			WorkingDir string
+			Project     string
+			SessionName string
+			WorkingDir  string
 		}
-		if err := rows.Scan(&s.Name, &s.WorkingDir); err == nil {
+		if err := rows.Scan(&s.Project, &s.SessionName, &s.WorkingDir); err == nil {
 			sessions = append(sessions, s)
 		}
 	}
@@ -324,15 +341,16 @@ func listSessions() {
 
 	fmt.Println("Recent sessions:")
 	for _, s := range sessions {
-		fmt.Printf("  - %-20s (Dir: %s)\n", s.Name, s.WorkingDir)
+		fullName := fmt.Sprintf("%s:%s", s.Project, s.SessionName)
+		fmt.Printf("  - %-30s (Dir: %s)\n", fullName, s.WorkingDir)
 	}
 }
 
 func printUsage() {
 	fmt.Println("Usage:")
 	fmt.Println("  opencode_wrapper restart")
-	fmt.Println("  opencode_wrapper init-session <SESSION_NAME> <WORKING_DIR>")
-	fmt.Println("  opencode_wrapper <SESSION_NAME> <MESSAGE> [options]")
-	fmt.Println("  opencode_wrapper <SESSION_NAME> /wait")
-	fmt.Println("  opencode_wrapper <SESSION_NAME> /status")
+	fmt.Println("  opencode_wrapper init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
+	fmt.Println("  opencode_wrapper <PROJECT> <SESSION_NAME> <MESSAGE> [options]")
+	fmt.Println("  opencode_wrapper <PROJECT> <SESSION_NAME> /wait")
+	fmt.Println("  opencode_wrapper <PROJECT> <SESSION_NAME> /status")
 }
