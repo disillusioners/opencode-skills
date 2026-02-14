@@ -1,4 +1,4 @@
-BINARY_NAME=opencode_wrapper
+BINARY_NAME=opencode_skill
 INSTALL_DIR=$(HOME)/bin
 
 .PHONY: all build install clean
