@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -12,41 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"opencode_wrapper/internal/api"
 	"opencode_wrapper/internal/client"
 	"opencode_wrapper/internal/config"
 	"opencode_wrapper/internal/daemon"
 )
-
-type SessionData struct {
-	ID         string
-	WorkingDir string
-}
-
-var db *sql.DB
-
-func initDB() {
-	var err error
-	db, err = sql.Open("sqlite3", config.SessionMapFile)
-	if err != nil {
-		log.Fatalf("Failed to open database: %v", err)
-	}
-
-	createTableSQL := `CREATE TABLE IF NOT EXISTS sessions (
-		"project" TEXT NOT NULL,
-		"session_name" TEXT NOT NULL,
-		"id" TEXT,
-		"working_dir" TEXT,
-		PRIMARY KEY (project, session_name)
-	);`
-
-	_, err = db.Exec(createTableSQL)
-	if err != nil {
-		log.Fatalf("Failed to create table: %v", err)
-	}
-}
 
 func restartDaemon() {
 	// Find and kill process using the daemon port
@@ -91,14 +60,14 @@ func main() {
 
 	// Daemon doesn't need database access
 	if *isDaemon {
-		d := daemon.NewServer()
+		registry, err := daemon.NewRegistry(config.SessionMapFile)
+		if err != nil {
+			log.Fatalf("Failed to create registry: %v", err)
+		}
+		d := daemon.NewServer(registry)
 		d.Start()
 		return
 	}
-
-	// Only client commands need database
-	initDB()
-	defer db.Close()
 
 	args := flag.Args()
 	if len(args) < 1 {
@@ -127,7 +96,12 @@ func main() {
 			log.Fatalf("Invalid working directory: %v", err)
 		}
 
-		initSession(project, sessionName, absDir)
+		c := client.NewClient("") // No session ID needed for init
+		sessionData, err := c.InitSession(project, sessionName, absDir)
+		if err != nil {
+			log.Fatalf("Failed to initialize session: %v", err)
+		}
+		fmt.Printf("[SUCCESS] Session '%s:%s' initialized with ID: %s in %s\n", project, sessionName, sessionData.ID, absDir)
 		return
 	}
 
@@ -144,19 +118,30 @@ func main() {
 	fullSessionName := fmt.Sprintf("%s:%s", project, sessionName)
 	messageParts := args[2:]
 
-	sessionData, ok := getSession(project, sessionName)
-	if !ok {
-		fmt.Printf("Session '%s' not found.\n", fullSessionName)
-		listSessions()
+	c := client.NewClient("") // Temp client for lookup
+	sessionData, err := c.GetSession(project, sessionName)
+	if err != nil {
+		fmt.Printf("Session '%s' not found: %v\n", fullSessionName, err)
+		sessions, _ := c.ListSessions()
+		if len(sessions) == 0 {
+			fmt.Println("No active sessions found.")
+		} else {
+			fmt.Println("Recent sessions:")
+			for _, s := range sessions {
+				fullName := fmt.Sprintf("%s:%s", s.Project, s.SessionName)
+				fmt.Printf("  - %-30s (Dir: %s)\n", fullName, s.WorkingDir)
+			}
+		}
 		fmt.Println("\nTo create a new session, run:")
 		fmt.Println("  opencode_wrapper init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
 		os.Exit(1)
 	}
 
-	c := client.NewClient(sessionData.ID)
+	// Now create the real client with session ID
+	c = client.NewClient(sessionData.ID)
 
 	// Ensure session is started in daemon with correct working dir
-	_, err := c.SendRequest("START_SESSION", map[string]string{"working_dir": sessionData.WorkingDir})
+	_, err = c.SendRequest("START_SESSION", map[string]string{"working_dir": sessionData.WorkingDir})
 	if err != nil {
 		log.Fatalf("Failed to start session: %v", err)
 	}
@@ -254,100 +239,6 @@ func parseModel(m string) api.ModelDetails {
 		return api.ModelDetails{ProviderID: parts[0], ModelID: parts[1]}
 	}
 	return api.ModelDetails{ProviderID: "zai-coding-plan", ModelID: m}
-}
-
-func getSession(project, sessionName string) (SessionData, bool) {
-	var id, workingDir string
-	row := db.QueryRow("SELECT id, working_dir FROM sessions WHERE project = ? AND session_name = ?", project, sessionName)
-	err := row.Scan(&id, &workingDir)
-	if err == sql.ErrNoRows {
-		return SessionData{}, false
-	} else if err != nil {
-		log.Printf("Error querying session: %v", err)
-		return SessionData{}, false
-	}
-	return SessionData{ID: id, WorkingDir: workingDir}, true
-}
-
-func initSession(project, sessionName, workingDir string) {
-	// Create full session name with project prefix for display
-	fullSessionName := fmt.Sprintf("%s:%s", project, sessionName)
-
-	// Check if exists and abort old session if needed
-	oldSession, exists := getSession(project, sessionName)
-	if exists {
-		fmt.Printf("[INFO] Session '%s' already exists (ID: %s, Dir: %s)\n", fullSessionName, oldSession.ID, oldSession.WorkingDir)
-
-		// Abort the old OpenCode session to clean up resources
-		fmt.Printf("[INFO] Aborting old OpenCode session %s...\n", oldSession.ID)
-		oldApiClient := api.NewClient(oldSession.WorkingDir)
-		if err := oldApiClient.AbortSession(oldSession.ID); err != nil {
-			log.Printf("[WARN] Failed to abort old session: %v", err)
-			// Continue anyway - we'll create the new session
-		} else {
-			fmt.Println("[INFO] Old session aborted successfully")
-		}
-
-		// Wait a moment for cleanup to complete
-		fmt.Println("[INFO] Waiting for cleanup...")
-		time.Sleep(2 * time.Second)
-	}
-
-	fmt.Printf("[INFO] Creating new session '%s' in %s...\n", fullSessionName, workingDir)
-	apiClient := api.NewClient(workingDir)
-	id, err := apiClient.CreateSession(fullSessionName)
-	if err != nil {
-		log.Fatalf("Failed to create session: %v", err)
-	}
-
-	// Upsert
-	statement, err := db.Prepare("INSERT OR REPLACE INTO sessions (project, session_name, id, working_dir) VALUES (?, ?, ?, ?)")
-	if err != nil {
-		log.Fatalf("Failed to prepare statement: %v", err)
-	}
-	_, err = statement.Exec(project, sessionName, id, workingDir)
-	if err != nil {
-		log.Fatalf("Failed to save session: %v", err)
-	}
-
-	fmt.Printf("[SUCCESS] Session '%s' initialized with ID: %s in %s\n", fullSessionName, id, workingDir)
-}
-
-func listSessions() {
-	rows, err := db.Query("SELECT project, session_name, working_dir FROM sessions ORDER BY project, session_name")
-	if err != nil {
-		log.Printf("Failed to list sessions: %v", err)
-		return
-	}
-	defer rows.Close()
-
-	var sessions []struct {
-		Project     string
-		SessionName string
-		WorkingDir  string
-	}
-
-	for rows.Next() {
-		var s struct {
-			Project     string
-			SessionName string
-			WorkingDir  string
-		}
-		if err := rows.Scan(&s.Project, &s.SessionName, &s.WorkingDir); err == nil {
-			sessions = append(sessions, s)
-		}
-	}
-
-	if len(sessions) == 0 {
-		fmt.Println("No active sessions found.")
-		return
-	}
-
-	fmt.Println("Recent sessions:")
-	for _, s := range sessions {
-		fullName := fmt.Sprintf("%s:%s", s.Project, s.SessionName)
-		fmt.Printf("  - %-30s (Dir: %s)\n", fullName, s.WorkingDir)
-	}
 }
 
 func printUsage() {

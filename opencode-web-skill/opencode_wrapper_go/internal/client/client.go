@@ -18,6 +18,14 @@ type Client struct {
 	conn      net.Conn
 }
 
+// SessionData represents session information from daemon
+type SessionData struct {
+	Project     string
+	SessionName string
+	ID          string
+	WorkingDir  string
+}
+
 func NewClient(sessionID string) *Client {
 	return &Client{
 		SessionID: sessionID,
@@ -224,4 +232,98 @@ func (c *Client) Status() {
 		fmt.Println("\nSession is currently processing...")
 		fmt.Println("Run `/wait` to monitor for completion.")
 	}
+}
+
+func (c *Client) InitSession(project, sessionName, workingDir string) (*SessionData, error) {
+	resp, err := c.SendRequest("INIT_SESSION", map[string]string{
+		"project":      project,
+		"session_name": sessionName,
+		"working_dir":  workingDir,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if status, _ := resp["status"].(string); status != "ok" {
+		return nil, fmt.Errorf("%v", resp["message"])
+	}
+
+	sessionID, _ := resp["session_id"].(string)
+	return &SessionData{
+		Project:     project,
+		SessionName: sessionName,
+		ID:          sessionID,
+		WorkingDir:  workingDir,
+	}, nil
+}
+
+func (c *Client) AbortSession(project, sessionName string) error {
+	resp, err := c.SendRequest("ABORT_SESSION", map[string]string{
+		"project":      project,
+		"session_name": sessionName,
+	})
+	if err != nil {
+		return err
+	}
+
+	if status, _ := resp["status"].(string); status != "ok" {
+		return fmt.Errorf("%v", resp["message"])
+	}
+
+	return nil
+}
+
+func (c *Client) ListSessions() ([]SessionData, error) {
+	resp, err := c.SendRequest("LIST_SESSIONS", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if status, _ := resp["status"].(string); status != "ok" {
+		return nil, fmt.Errorf("%v", resp["message"])
+	}
+
+	sessionsRaw, _ := resp["sessions"].([]interface{})
+	sessions := make([]SessionData, 0, len(sessionsRaw))
+
+	for _, sRaw := range sessionsRaw {
+		s, _ := sRaw.(map[string]interface{})
+		sessions = append(sessions, SessionData{
+			Project:     getString(s, "project"),
+			SessionName: getString(s, "session_name"),
+			ID:          getString(s, "session_id"),
+			WorkingDir:  getString(s, "working_dir"),
+		})
+	}
+
+	return sessions, nil
+}
+
+func (c *Client) GetSession(project, sessionName string) (*SessionData, error) {
+	resp, err := c.SendRequest("GET_SESSION", map[string]string{
+		"project":      project,
+		"session_name": sessionName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if status, _ := resp["status"].(string); status != "ok" {
+		return nil, fmt.Errorf("%v", resp["message"])
+	}
+
+	sessionRaw, _ := resp["session"].(map[string]interface{})
+	return &SessionData{
+		Project:     getString(sessionRaw, "project"),
+		SessionName: getString(sessionRaw, "session_name"),
+		ID:          getString(sessionRaw, "session_id"),
+		WorkingDir:  getString(sessionRaw, "working_dir"),
+	}, nil
+}
+
+func getString(m map[string]interface{}, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
 }
