@@ -57,7 +57,7 @@ All message submissions (PROMPT, COMMAND, ANSWER) return **immediately** with a 
 
 The daemon continues processing in the background. Use `/wait` to retrieve results when ready.
 
-### Retrieving Results with `/wait`
+### MUST Retrieving Results with `/wait`
 The `/wait` command is the primary way to get results from the daemon:
 - **Blocking**: Waits up to 10 minutes for the daemon to complete its work
 - **Non-blocking alternative**: Use `/status` to check if results are ready without waiting
