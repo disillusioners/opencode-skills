@@ -59,11 +59,10 @@ func (s *Server) Start() error {
 		log.Printf("Warning: failed to list sessions for recovery: %v", err)
 	} else {
 		for _, session := range sessions {
-			fullID := fmt.Sprintf("%s:%s", session.Project, session.SessionName)
 			sm := manager.NewSessionManager(session.ID, session.WorkingDir)
 			sm.Start()
 			s.sessions[session.ID] = sm
-			log.Printf("Recovered session: %s (ID: %s, Dir: %s)", fullID, session.ID, session.WorkingDir)
+			log.Printf("Recovered session: %s %s (ID: %s, Dir: %s)", session.Project, session.SessionName, session.ID, session.WorkingDir)
 		}
 		log.Printf("Recovered %d session(s) from registry", len(sessions))
 	}

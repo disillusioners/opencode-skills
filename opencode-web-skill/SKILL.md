@@ -24,13 +24,13 @@ opencode_skill init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>
 - `<SESSION_NAME>`: Task or feature name (e.g., `planning`, `task-1`, `bugfix`).
 - `<WORKING_DIR>`: Absolute path to the project root directory where the agent should work.
 
-The full session name will be created as `PROJECT:SESSION_NAME` (e.g., `myapp:task-1`). This reduces naming conflicts and helps organize sessions by project.
-
 **Example:**
 ```bash
 opencode_skill init-session myapp feature-login /Users/me/projects/my-app
-# Creates session: myapp:feature-login
 ```
+
+**Session Reference:**
+Sessions are identified by separate `project` and `session_name` parameters (e.g., `myapp` and `feature-login`). These are passed as two separate arguments to all commands.
 
 **Re-initializing a Session:**
 If you run `init-session` with the same PROJECT and SESSION_NAME, the old OpenCode session will be automatically aborted and a new one created with updated settings. No confirmation is required (designed for agent use).

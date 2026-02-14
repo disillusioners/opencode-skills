@@ -136,7 +136,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to initialize session: %v", err)
 		}
-		fmt.Printf("[SUCCESS] Session '%s:%s' initialized with ID: %s in %s\n", project, sessionName, sessionData.ID, absDir)
+		fmt.Printf("[SUCCESS] Session '%s %s' initialized with ID: %s in %s\n", project, sessionName, sessionData.ID, absDir)
 		return
 	}
 
@@ -150,21 +150,19 @@ func main() {
 
 	project := args[0]
 	sessionName := args[1]
-	fullSessionName := fmt.Sprintf("%s:%s", project, sessionName)
 	messageParts := args[2:]
 
 	c := client.NewClient("") // Temp client for lookup
 	sessionData, err := c.GetSession(project, sessionName)
 	if err != nil {
-		fmt.Printf("Session '%s' not found: %v\n", fullSessionName, err)
+		fmt.Printf("Session '%s %s' not found: %v\n", project, sessionName, err)
 		sessions, _ := c.ListSessions()
 		if len(sessions) == 0 {
 			fmt.Println("No active sessions found.")
 		} else {
 			fmt.Println("Recent sessions:")
 			for _, s := range sessions {
-				fullName := fmt.Sprintf("%s:%s", s.Project, s.SessionName)
-				fmt.Printf("  - %-30s (Dir: %s)\n", fullName, s.WorkingDir)
+				fmt.Printf("  - %s %s (Dir: %s)\n", s.Project, s.SessionName, s.WorkingDir)
 			}
 		}
 		fmt.Println("\nTo create a new session, run:")
