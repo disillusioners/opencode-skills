@@ -6,6 +6,7 @@ import (
 
 	"opencode_skill/internal/api"
 	"opencode_skill/internal/config"
+	"opencode_skill/internal/types"
 )
 
 type State string
@@ -133,7 +134,7 @@ func (sm *SessionManager) handleRequest(req Request) {
 		go sm.runWorker(req)
 
 	case "ANSWER":
-		payload, ok := req.Payload.(api.AnswerRequest)
+		payload, ok := req.Payload.(types.AnswerRequest)
 		if ok {
 			if err := sm.client.AnswerQuestion(payload); err != nil {
 				log.Printf("Answer failed: %v", err)
@@ -172,10 +173,10 @@ func (sm *SessionManager) runWorker(req Request) {
 	var err error
 
 	if req.Type == "COMMAND" {
-		cmdReq, _ := req.Payload.(api.CommandRequest)
+		cmdReq, _ := req.Payload.(types.CommandRequest)
 		res, err = sm.client.SendCommand(sm.SessionID, cmdReq)
 	} else {
-		promptReq, _ := req.Payload.(api.PromptRequest)
+		promptReq, _ := req.Payload.(types.PromptRequest)
 		res, err = sm.client.SendPrompt(sm.SessionID, promptReq)
 	}
 
@@ -261,10 +262,10 @@ func (sm *SessionManager) performFix() {
 	sm.taskStartTime = time.Now()
 	sm.LatestResponse = nil
 
-	req := api.PromptRequest{
+	req := types.PromptRequest{
 		Agent: "sisyphus",
-		Model: api.ModelDetails{ProviderID: "zai-coding-plan", ModelID: "glm-5"},
-		Parts: []api.Part{{Type: "text", Text: "continue"}},
+		Model: types.ModelDetails{ProviderID: "zai-coding-plan", ModelID: "glm-5"},
+		Parts: []types.Part{{Type: "text", Text: "continue"}},
 	}
 
 	go func() {

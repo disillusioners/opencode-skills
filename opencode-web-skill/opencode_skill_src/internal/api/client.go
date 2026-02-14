@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/url"
 	"opencode_skill/internal/config"
+	"opencode_skill/internal/types"
 	"strconv"
 	"strings"
 	"time"
@@ -42,12 +43,12 @@ func (c *Client) CreateSession(title string) (string, error) {
 	return sessionResp.ID, nil
 }
 
-func (c *Client) SendPrompt(sessionID string, req PromptRequest) (interface{}, error) {
+func (c *Client) SendPrompt(sessionID string, req types.PromptRequest) (interface{}, error) {
 	u := fmt.Sprintf("%s/session/%s/message", c.BaseURL, sessionID)
 	return c.postAndParse(u, req)
 }
 
-func (c *Client) SendCommand(sessionID string, req CommandRequest) (interface{}, error) {
+func (c *Client) SendCommand(sessionID string, req types.CommandRequest) (interface{}, error) {
 	u := fmt.Sprintf("%s/session/%s/command", c.BaseURL, sessionID)
 	return c.postAndParse(u, req)
 }
@@ -74,7 +75,7 @@ func (c *Client) GetQuestions() ([]Question, error) {
 	return nil, fmt.Errorf("failed to parse questions response")
 }
 
-func (c *Client) AnswerQuestion(req AnswerRequest) error {
+func (c *Client) AnswerQuestion(req types.AnswerRequest) error {
 	u := fmt.Sprintf("%s/question/%s/reply", c.BaseURL, req.RequestID)
 	payload := map[string]interface{}{
 		"answers": req.Answers,

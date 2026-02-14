@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"opencode_skill/internal/api"
 	"opencode_skill/internal/client"
 	"opencode_skill/internal/config"
 	"opencode_skill/internal/daemon"
+	"opencode_skill/internal/types"
 )
 
 func stopDaemon() bool {
@@ -216,7 +216,7 @@ func main() {
 			formattedAnswers = append(formattedAnswers, []string{a})
 		}
 
-		payload := api.AnswerRequest{
+		payload := types.AnswerRequest{
 			RequestID: reqID,
 			Answers:   formattedAnswers,
 		}
@@ -240,7 +240,7 @@ func main() {
 		command := cmd[1:]
 		arguments := strings.Join(messageParts[1:], " ")
 
-		payload := api.CommandRequest{
+		payload := types.CommandRequest{
 			Agent:     *agent,
 			Model:     parseModel(*model),
 			Command:   command,
@@ -264,10 +264,10 @@ func main() {
 	} else {
 		// Prompt
 		fullMessage := strings.Join(messageParts, " ")
-		payload := api.PromptRequest{
+		payload := types.PromptRequest{
 			Agent: *agent,
 			Model: parseModel(*model),
-			Parts: []api.Part{{Type: "text", Text: fullMessage}},
+			Parts: []types.Part{{Type: "text", Text: fullMessage}},
 		}
 
 		res, err := c.SendRequest("PROMPT", payload)
@@ -286,12 +286,12 @@ func main() {
 	}
 }
 
-func parseModel(m string) api.ModelDetails {
+func parseModel(m string) types.ModelDetails {
 	if strings.Contains(m, "/") {
 		parts := strings.SplitN(m, "/", 2)
-		return api.ModelDetails{ProviderID: parts[0], ModelID: parts[1]}
+		return types.ModelDetails{ProviderID: parts[0], ModelID: parts[1]}
 	}
-	return api.ModelDetails{ProviderID: "zai-coding-plan", ModelID: m}
+	return types.ModelDetails{ProviderID: "zai-coding-plan", ModelID: m}
 }
 
 func formatSubmittedMessage(project, session string) string {

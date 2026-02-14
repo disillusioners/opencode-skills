@@ -14,6 +14,7 @@ import (
 	"opencode_skill/internal/api"
 	"opencode_skill/internal/config"
 	"opencode_skill/internal/manager"
+	"opencode_skill/internal/types"
 )
 
 type Server struct {
@@ -289,15 +290,15 @@ func (s *Server) handleConnection(conn net.Conn) {
 			payloadBytes, _ := json.Marshal(req.Payload) // Re-marshal to unmarshal into struct
 
 			if req.Action == "PROMPT" {
-				var p api.PromptRequest
+				var p types.PromptRequest
 				json.Unmarshal(payloadBytes, &p)
 				internalPayload = p
 			} else if req.Action == "COMMAND" {
-				var p api.CommandRequest
+				var p types.CommandRequest
 				json.Unmarshal(payloadBytes, &p)
 				internalPayload = p
 			} else if req.Action == "ANSWER" {
-				var p api.AnswerRequest
+				var p types.AnswerRequest
 				json.Unmarshal(payloadBytes, &p)
 				internalPayload = p
 			}
