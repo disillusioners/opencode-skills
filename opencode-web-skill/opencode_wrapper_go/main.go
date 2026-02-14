@@ -254,17 +254,27 @@ func getSession(name string) (SessionData, bool) {
 }
 
 func initSession(name, workingDir string) {
-	// Check if exists
-	_, exists := getSession(name)
+	// Check if exists and abort old session if needed
+	oldSession, exists := getSession(name)
 	if exists {
-		fmt.Printf("Session '%s' already exists. Overwrite? (y/N): ", name)
-		var response string
-		fmt.Scanln(&response)
-		if strings.ToLower(response) != "y" {
-			return
+		fmt.Printf("[INFO] Session '%s' already exists (ID: %s, Dir: %s)\n", name, oldSession.ID, oldSession.WorkingDir)
+
+		// Abort the old OpenCode session to clean up resources
+		fmt.Printf("[INFO] Aborting old OpenCode session %s...\n", oldSession.ID)
+		oldApiClient := api.NewClient(oldSession.WorkingDir)
+		if err := oldApiClient.AbortSession(oldSession.ID); err != nil {
+			log.Printf("[WARN] Failed to abort old session: %v", err)
+			// Continue anyway - we'll create the new session
+		} else {
+			fmt.Println("[INFO] Old session aborted successfully")
 		}
+
+		// Wait a moment for cleanup to complete
+		fmt.Println("[INFO] Waiting for cleanup...")
+		time.Sleep(2 * time.Second)
 	}
 
+	fmt.Printf("[INFO] Creating new session '%s' in %s...\n", name, workingDir)
 	apiClient := api.NewClient(workingDir)
 	id, err := apiClient.CreateSession(name)
 	if err != nil {
@@ -281,7 +291,7 @@ func initSession(name, workingDir string) {
 		log.Fatalf("Failed to save session: %v", err)
 	}
 
-	fmt.Printf("Session '%s' initialized in %s\n", name, workingDir)
+	fmt.Printf("[SUCCESS] Session '%s' initialized with ID: %s in %s\n", name, id, workingDir)
 }
 
 func listSessions() {
