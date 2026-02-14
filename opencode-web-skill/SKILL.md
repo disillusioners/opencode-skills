@@ -103,7 +103,7 @@ opencode_skill <PROJECT> <SESSION_NAME> /answer "ESLint" "Jest"
 ## Workflows
 > **Reminder**: Ensure you have initialized the session using `init-session` before running these commands.
 
-**Simple Workflow (For simple tasks)**
+**Simple Workflow (For simple tasks without planning)**
 1.  **Initialize**: `opencode_skill init-session myapp feature-A /path/to/project`
 2.  **Request**: `opencode_skill "myapp:feature-A" "Your request here" -agent sisyphus`
 3.  **Wait**: `opencode_skill "myapp:feature-A" /wait` (when needed)
