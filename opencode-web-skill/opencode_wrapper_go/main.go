@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -43,6 +45,39 @@ func initDB() {
 	}
 }
 
+func restartDaemon() {
+	// Try to stop existing daemon
+	pidData, err := os.ReadFile(config.PidFile)
+	if err == nil {
+		var pid int
+		fmt.Sscanf(string(pidData), "%d", &pid)
+
+		// Check if process exists and kill it
+		process, err := os.FindProcess(pid)
+		if err == nil {
+			fmt.Printf("Stopping existing daemon (PID: %d)...\n", pid)
+			process.Signal(syscall.SIGTERM)
+
+			// Wait a bit for graceful shutdown
+			for i := 0; i < 10; i++ {
+				if err := process.Signal(syscall.Signal(0)); err != nil {
+					// Process no longer exists
+					break
+				}
+				fmt.Print(".")
+				os.Stdout.Sync()
+				time.Sleep(100 * time.Millisecond)
+			}
+			fmt.Println()
+		}
+	}
+
+	// Start new daemon
+	fmt.Println("Starting new daemon...")
+	d := daemon.NewServer()
+	d.Start()
+}
+
 func main() {
 	initDB()
 	defer db.Close()
@@ -66,6 +101,11 @@ func main() {
 	}
 
 	command := args[0]
+
+	if command == "restart" {
+		restartDaemon()
+		return
+	}
 
 	if command == "init-session" {
 		if len(args) < 3 {
@@ -280,6 +320,7 @@ func listSessions() {
 
 func printUsage() {
 	fmt.Println("Usage:")
+	fmt.Println("  opencode_wrapper restart")
 	fmt.Println("  opencode_wrapper init-session <SESSION_NAME> <WORKING_DIR>")
 	fmt.Println("  opencode_wrapper <SESSION_NAME> <MESSAGE> [options]")
 	fmt.Println("  opencode_wrapper <SESSION_NAME> /wait")
