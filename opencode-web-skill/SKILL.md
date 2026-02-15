@@ -1,5 +1,5 @@
 ---
-name: opencode-web
+name: opencode-skill
 description: "Control and operate oh-my-opencode via web API interface using the Go-based opencode_skill."
 metadata: {"version": "1.1.0", "author": "Kha Nguyen", "license": "MIT", "github_url": "https://github.com/disillusioners/opencode-skills"}
 ---
@@ -159,6 +159,6 @@ opencode_skill <PROJECT> <SESSION_NAME> /answer "ESLint" "Jest"
 2.  **Plan**: `opencode_skill myapp feature-A "Make a plan..." -agent prometheus`
 3.  **Answer multiple questions**: `opencode_skill myapp feature-A /answer "Option 1" "Option 2"`
 4. **Answer a special question/choice: Deep review or Start work**: This answer based on your decision, normally high complexity tasks require deep review, low complexity tasks prefer start work.
-5.  **When response message have explicitly guide to run command /start-work**: `opencode_skill myapp feature-A "/start-work" -agent atlas` (Note:from this point always use atlas agent on this session)
+5.  **When response message have explicitly guide to run command /start-work**: `opencode_skill myapp feature-A "/start-work" -agent atlas`
 6.  **Wait until completion**: `opencode_skill myapp feature-A /wait`
-7. **Ask for clean up finished plan and boulder.json**: `opencode_skill myapp feature-A "Clean up finished plan and boulder.json"` -agent atlas
+7. **Ask for clean up finished plan and boulder.json**: `opencode_skill myapp feature-A "Clean up finished plan and boulder.json" -agent atlas`
