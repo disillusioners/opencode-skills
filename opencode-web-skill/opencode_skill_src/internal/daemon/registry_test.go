@@ -15,13 +15,11 @@ func TestRegistry_CreateAndGet(t *testing.T) {
 		t.Fatalf("NewRegistry failed: %v", err)
 	}
 
-	// Create a session
 	err = registry.Create("myproject", "main", "session-123", "/home/user/project")
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	// Get the session
 	session, err := registry.Get("myproject", "main")
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
@@ -38,6 +36,9 @@ func TestRegistry_CreateAndGet(t *testing.T) {
 	}
 	if session.WorkingDir != "/home/user/project" {
 		t.Errorf("Expected working dir /home/user/project, got %s", session.WorkingDir)
+	}
+	if session.LockedAgent != "" {
+		t.Errorf("Expected empty locked_agent, got %s", session.LockedAgent)
 	}
 }
 
@@ -303,5 +304,123 @@ func TestRegistry_CreateDirectory(t *testing.T) {
 	// Verify file was created
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		t.Error("Database file was not created")
+	}
+}
+
+func TestRegistry_UpdateLockedAgent(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	err = registry.Create("project", "session", "id-1", "/dir1")
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	err = registry.UpdateLockedAgent("project", "session", "atlas")
+	if err != nil {
+		t.Fatalf("UpdateLockedAgent failed: %v", err)
+	}
+
+	session, err := registry.Get("project", "session")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	if session.LockedAgent != "atlas" {
+		t.Errorf("Expected locked_agent 'atlas', got '%s'", session.LockedAgent)
+	}
+}
+
+func TestRegistry_UpdateLockedAgent_NotFound(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	err = registry.UpdateLockedAgent("nonexistent", "session", "atlas")
+	if err != ErrNotFound {
+		t.Errorf("Expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestRegistry_FindByID(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	err = registry.Create("project", "session", "session-id-123", "/dir1")
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	session, err := registry.FindByID("session-id-123")
+	if err != nil {
+		t.Fatalf("FindByID failed: %v", err)
+	}
+
+	if session.ID != "session-id-123" {
+		t.Errorf("Expected ID session-id-123, got %s", session.ID)
+	}
+	if session.Project != "project" {
+		t.Errorf("Expected project 'project', got %s", session.Project)
+	}
+	if session.SessionName != "session" {
+		t.Errorf("Expected session_name 'session', got %s", session.SessionName)
+	}
+}
+
+func TestRegistry_FindByID_NotFound(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	_, err = registry.FindByID("nonexistent-id")
+	if err != ErrNotFound {
+		t.Errorf("Expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestRegistry_FindByID_WithLockedAgent(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	err = registry.Create("project", "session", "session-id-456", "/dir1")
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	err = registry.UpdateLockedAgent("project", "session", "atlas")
+	if err != nil {
+		t.Fatalf("UpdateLockedAgent failed: %v", err)
+	}
+
+	session, err := registry.FindByID("session-id-456")
+	if err != nil {
+		t.Fatalf("FindByID failed: %v", err)
+	}
+
+	if session.LockedAgent != "atlas" {
+		t.Errorf("Expected locked_agent 'atlas', got '%s'", session.LockedAgent)
 	}
 }

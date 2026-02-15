@@ -261,6 +261,36 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	case "PROMPT", "COMMAND", "ANSWER", "FIX":
 		if sm, ok := s.sessions[req.SessionID]; ok {
+			// Extract text content for special handling regarding busy state and agent locking
+			targetText := ""
+			if req.Action == "PROMPT" {
+				if parts, ok := req.Payload["parts"].([]interface{}); ok && len(parts) > 0 {
+					if partMap, ok := parts[0].(map[string]interface{}); ok {
+						if text, ok := partMap["text"].(string); ok {
+							targetText = text
+						}
+					}
+				}
+			} else if req.Action == "COMMAND" {
+				if cmd, ok := req.Payload["command"].(string); ok {
+					targetText = cmd
+				}
+			}
+
+			// Normalize text (trim slash if present locally to handle both /cmd and cmd styles)
+			normalizedText := strings.TrimPrefix(targetText, "/")
+
+			// Handle /start-work: lock agent to atlas
+			if normalizedText == "start-work" {
+				if sessionData, err := s.registry.FindByID(req.SessionID); err == nil {
+					if err := s.registry.UpdateLockedAgent(sessionData.Project, sessionData.SessionName, "atlas"); err != nil {
+						log.Printf("Failed to lock agent for session %s: %v", req.SessionID, err)
+					} else {
+						log.Printf("Locked agent to 'atlas' for session %s", req.SessionID)
+					}
+				}
+			}
+
 			// Verify BUSY state for PROMPT
 			if req.Action == "PROMPT" {
 				snapshot := sm.GetSnapshot()
@@ -268,19 +298,23 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 				// Check if special prompt
 				isSpecial := false
-				if parts, ok := req.Payload["parts"].([]interface{}); ok && len(parts) > 0 {
-					if partMap, ok := parts[0].(map[string]interface{}); ok {
-						if text, ok := partMap["text"].(string); ok {
-							if text == "start-work" || text == "continue" || text == "abort" || text == "retry" {
-								isSpecial = true
-							}
-						}
-					}
+				if normalizedText == "start-work" || normalizedText == "continue" || normalizedText == "abort" || normalizedText == "retry" {
+					isSpecial = true
 				}
 
 				if state == manager.StateBusy && !isSpecial {
 					response = map[string]interface{}{"status": "error", "message": "Session is busy. Please patience wait for the previous message result before send new message."}
 					break // break switch, send response
+				}
+			}
+
+			// Check for locked_agent and override agent if set
+			if req.Action == "PROMPT" || req.Action == "COMMAND" {
+				if sessionData, err := s.registry.FindByID(req.SessionID); err == nil {
+					if sessionData.LockedAgent != "" {
+						req.Payload["agent"] = sessionData.LockedAgent
+						log.Printf("Using locked agent '%s' for session %s", sessionData.LockedAgent, req.SessionID)
+					}
 				}
 			}
 
