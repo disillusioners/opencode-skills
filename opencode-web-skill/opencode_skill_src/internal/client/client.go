@@ -132,13 +132,13 @@ func (c *Client) WaitForResult() {
 		resp, err := c.SendRequest("GET_STATUS", nil)
 		if err != nil {
 			fmt.Printf("Error checking status: %v\n", err)
-			time.Sleep(3 * time.Second)
+			time.Sleep(5 * time.Second)
 			continue
 		}
 
 		if status, ok := resp["status"].(string); !ok || status != "ok" {
 			fmt.Printf("Daemon error: %v\n", resp["message"])
-			time.Sleep(3 * time.Second)
+			time.Sleep(5 * time.Second)
 			continue
 		}
 
@@ -165,7 +165,7 @@ func (c *Client) WaitForResult() {
 			return
 		}
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 	fmt.Println("\n[TIMEOUT] Message is taking longer than 10 minutes.")
