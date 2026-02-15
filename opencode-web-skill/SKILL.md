@@ -1,7 +1,7 @@
 ---
 name: opencode-web
 description: "Control and operate oh-my-opencode via web API interface using the Go-based opencode_skill."
-metadata: {"version": "2.0.0", "author": "Kha Nguyen", "license": "MIT", "github_url": "https://github.com/disillusioners/opencode-web-skill"}
+metadata: {"version": "1.0.0", "author": "Kha Nguyen", "license": "MIT", "github_url": "https://github.com/disillusioners/opencode-skills"}
 ---
 
 # OpenCode Web Controller (Go)

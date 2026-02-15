@@ -5,7 +5,7 @@ This repository contains the **OpenCode Web Skill** - a Go-based daemon-client a
 ## Project Structure
 
 ```
-openclaw-opencode-skills/
+opencode-skills/
 ├── opencode-web-skill/          # Main Go project
 │   ├── SKILL.md                 # Skill documentation and usage guide
 │   └── opencode_skill_src/      # Go source code
