@@ -2,6 +2,7 @@ package manager
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"opencode_skill/internal/api"
@@ -23,6 +24,7 @@ type SessionManager struct {
 	LatestResponse interface{}
 	Questions      []api.Question
 
+	mu        sync.RWMutex // Protects State, LatestResponse, Questions, isWorkerBusy
 	inputChan chan Request
 	stopChan  chan struct{}
 	client    *api.Client
@@ -62,6 +64,8 @@ func (sm *SessionManager) Start() {
 }
 
 func (sm *SessionManager) UpdateWorkingDir(workingDir string) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
 	sm.client = api.NewClient(workingDir)
 }
 
@@ -70,15 +74,22 @@ func (sm *SessionManager) Stop() {
 }
 
 func (sm *SessionManager) SubmitRequest(req Request) {
+	// Pre-set state to avoid race condition where GetSnapshot sees IDLE before loop picks up request
+	sm.mu.Lock()
+	if req.Type == "PROMPT" || req.Type == "COMMAND" {
+		sm.State = StateBusy
+		sm.LatestResponse = nil
+		sm.isWorkerBusy = true // Optimistic lock
+	}
+	sm.mu.Unlock()
+
 	sm.inputChan <- req
 }
 
 func (sm *SessionManager) GetSnapshot() map[string]interface{} {
-	// Note: accessing fields without lock is technically racy but for a simple snapshot it might be okay.
-	// Ideally we should use a command to get snapshot or a mutex.
-	// For simplicity, let's use a mutex-less approach assuming single writer (the loop) and readers.
-	// Or better, send a request to get snapshot? No, that blocks.
-	// Let's just read.
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
 	return map[string]interface{}{
 		"state":           sm.State,
 		"session_id":      sm.SessionID,
@@ -117,18 +128,18 @@ func (sm *SessionManager) handleRequest(req Request) {
 
 	switch req.Type {
 	case "PROMPT", "COMMAND":
-		if sm.isWorkerBusy {
-			// Already checked by Daemon, but double check
-			if req.ResultChan != nil {
-				req.ResultChan <- nil
-			}
-			return
-		}
+		sm.mu.Lock()
+		// Double check if we are already busy (should match SubmitRequest logic)
+		// But since we set isWorkerBusy in SubmitRequest, we just proceed.
+		// Actually, if we are ALREADY busy from a previous request that hasn't finished,
+		// SubmitRequest would have overwritten state.
+		// Realistically, Daemon checks 'State' before calling SubmitRequest.
 
 		sm.State = StateBusy
 		sm.LatestResponse = nil
 		sm.taskStartTime = time.Now()
 		sm.isWorkerBusy = true
+		sm.mu.Unlock()
 
 		log.Printf("Starting worker for PROMPT/COMMAND...")
 		go sm.runWorker(req)
@@ -139,6 +150,7 @@ func (sm *SessionManager) handleRequest(req Request) {
 			if err := sm.client.AnswerQuestion(payload); err != nil {
 				log.Printf("Answer failed: %v", err)
 			} else {
+				sm.mu.Lock()
 				// Optimistically remove question
 				newQuestions := []api.Question{}
 				for _, q := range sm.Questions {
@@ -156,6 +168,7 @@ func (sm *SessionManager) handleRequest(req Request) {
 						sm.State = StateIdle
 					}
 				}
+				sm.mu.Unlock()
 			}
 		}
 
@@ -172,18 +185,27 @@ func (sm *SessionManager) runWorker(req Request) {
 	var res interface{}
 	var err error
 
+	// Read client with lock if needed, but client itself is thread-safe (just struct with static fields)
+	// sm.client pointer exchange needs lock.
+	sm.mu.RLock()
+	client := sm.client
+	sm.mu.RUnlock()
+
 	if req.Type == "COMMAND" {
 		cmdReq, _ := req.Payload.(types.CommandRequest)
-		res, err = sm.client.SendCommand(sm.SessionID, cmdReq)
+		res, err = client.SendCommand(sm.SessionID, cmdReq)
 	} else {
 		promptReq, _ := req.Payload.(types.PromptRequest)
-		res, err = sm.client.SendPrompt(sm.SessionID, promptReq)
+		res, err = client.SendPrompt(sm.SessionID, promptReq)
 	}
 
 	sm.workerDoneChan <- workerResult{Result: res, Error: err}
 }
 
 func (sm *SessionManager) handleWorkerDone(res workerResult) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
 	sm.isWorkerBusy = false
 
 	if res.Error != nil {
@@ -200,7 +222,11 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 }
 
 func (sm *SessionManager) pollQuestions() {
-	questions, err := sm.client.GetQuestions()
+	sm.mu.RLock()
+	client := sm.client
+	sm.mu.RUnlock()
+
+	questions, err := client.GetQuestions()
 	if err != nil {
 		log.Printf("Poll error: %v", err)
 		return
@@ -213,6 +239,10 @@ func (sm *SessionManager) pollQuestions() {
 			sessionQuestions = append(sessionQuestions, q)
 		}
 	}
+
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
 	sm.Questions = sessionQuestions
 
 	if len(sm.Questions) > 0 {
@@ -227,40 +257,45 @@ func (sm *SessionManager) pollQuestions() {
 }
 
 func (sm *SessionManager) checkAutoFix() {
+	sm.mu.RLock()
 	if len(sm.Questions) > 0 {
+		sm.mu.RUnlock()
 		return
 	}
 
 	if sm.State == StateBusy && sm.isWorkerBusy {
 		if time.Since(sm.taskStartTime) > config.AutoFixTimeout {
+			sm.mu.RUnlock()
 			log.Printf("Session %s exceeded timeout. Triggering Auto-Fix.", sm.SessionID)
-			// We need to trigger FIX. We can send a request to ourselves?
-			// Or just call performFix directly?
-			// performFix is blocking-ish, better to schedule it
 			go func() {
 				sm.inputChan <- Request{Type: "FIX"}
 			}()
+			return
 		}
 	}
+	sm.mu.RUnlock()
 }
 
 func (sm *SessionManager) performFix() {
 	log.Printf("Performing FIX for session %s...", sm.SessionID)
 
+	sm.mu.RLock()
+	client := sm.client
+	sm.mu.RUnlock()
+
 	// 1. Abort
-	_ = sm.client.AbortSession(sm.SessionID)
+	_ = client.AbortSession(sm.SessionID)
 
 	// Wait
 	time.Sleep(3 * time.Second)
 
-	// 2. Reset Worker state?
-	// The previous worker might still return, but we overwrite it.
-
+	sm.mu.Lock()
 	// 3. Send Continue
 	sm.isWorkerBusy = true
 	sm.State = StateBusy
 	sm.taskStartTime = time.Now()
 	sm.LatestResponse = nil
+	sm.mu.Unlock()
 
 	req := types.PromptRequest{
 		Agent: "sisyphus",
@@ -269,7 +304,7 @@ func (sm *SessionManager) performFix() {
 	}
 
 	go func() {
-		res, err := sm.client.SendPrompt(sm.SessionID, req)
+		res, err := client.SendPrompt(sm.SessionID, req)
 		sm.workerDoneChan <- workerResult{Result: res, Error: err}
 	}()
 }
