@@ -18,6 +18,7 @@ type Client struct {
 	SessionID   string
 	Project     string
 	SessionName string
+	Quiet       bool
 	conn        net.Conn
 }
 
@@ -41,6 +42,10 @@ func NewClientWithMeta(sessionID, project, sessionName string) *Client {
 		Project:     project,
 		SessionName: sessionName,
 	}
+}
+
+func (c *Client) SetQuiet(quiet bool) {
+	c.Quiet = quiet
 }
 
 func (c *Client) fullSessionRef() string {
@@ -126,19 +131,21 @@ func (c *Client) SendRequest(action string, payload interface{}) (map[string]int
 
 func (c *Client) WaitForResult() {
 	start := time.Now()
-	fmt.Printf("Waiting for result (Timeout: %v)...\n", config.ClientTimeout)
+	if !c.Quiet {
+		fmt.Printf("Waiting for result (Timeout: %v)...\n", config.ClientTimeout)
+	}
 
 	for time.Since(start) < config.ClientTimeout {
 		resp, err := c.SendRequest("GET_STATUS", nil)
 		if err != nil {
 			fmt.Printf("Error checking status: %v\n", err)
-			time.Sleep(5 * time.Second)
+			time.Sleep(config.PollInterval)
 			continue
 		}
 
 		if status, ok := resp["status"].(string); !ok || status != "ok" {
 			fmt.Printf("Daemon error: %v\n", resp["message"])
-			time.Sleep(5 * time.Second)
+			time.Sleep(config.PollInterval)
 			continue
 		}
 
@@ -159,29 +166,43 @@ func (c *Client) WaitForResult() {
 				fmt.Printf("Error: %s\n", errStr)
 			} else if res, ok := latestResp["result"]; ok {
 				formatted, _ := json.MarshalIndent(res, "", "  ")
-				fmt.Println("Response received:")
-				fmt.Println(string(formatted))
+				if c.Quiet {
+					fmt.Println(string(formatted))
+				} else {
+					fmt.Println("Response received:")
+					fmt.Println(string(formatted))
+				}
 			}
 			return
 		}
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(config.PollInterval)
 	}
 
-	fmt.Println("\n[TIMEOUT] Message is taking longer than 10 minutes.")
-	fmt.Println("Daemon is still running in background.")
-	fmt.Printf("Run: `opencode_skill %s /wait` to check again.\n", c.fullSessionRef())
+	if c.Quiet {
+		fmt.Println("Error: Timeout waiting for result")
+	} else {
+		fmt.Printf("\n[TIMEOUT] Message is taking longer than %v.\n", config.ClientTimeout)
+		fmt.Println("Daemon is still running in background.")
+		fmt.Printf("Run: `opencode_skill %s /wait` to check again.\n", c.fullSessionRef())
+	}
 }
 
 func (c *Client) printQuestions(questions []interface{}) {
-	fmt.Println("\n" + strings.Repeat("=", 40))
-	fmt.Println("  ACTION REQUIRED")
-	fmt.Println(strings.Repeat("=", 40))
+	if !c.Quiet {
+		fmt.Println("\n" + strings.Repeat("=", 40))
+		fmt.Println("  ACTION REQUIRED")
+		fmt.Println(strings.Repeat("=", 40))
+	}
 
 	// We need to decode map[string]interface{} to api.Question manually or just traverse
 	for _, qRaw := range questions {
 		q, _ := qRaw.(map[string]interface{})
-		fmt.Printf("[?] Request ID: %v\n", q["id"])
+		if c.Quiet {
+			fmt.Printf("[?] Request ID: %v\n", q["id"])
+		} else {
+			fmt.Printf("[?] Request ID: %v\n", q["id"])
+		}
 
 		if subQs, ok := q["questions"].([]interface{}); ok {
 			for _, subQRaw := range subQs {
@@ -204,7 +225,9 @@ func (c *Client) printQuestions(questions []interface{}) {
 			}
 		}
 	}
-	fmt.Printf("\nRun: `opencode_skill %s /answer ...`\n", c.fullSessionRef())
+	if !c.Quiet {
+		fmt.Printf("\nRun: `opencode_skill %s /answer ...`\n", c.fullSessionRef())
+	}
 }
 
 func (c *Client) Status() {

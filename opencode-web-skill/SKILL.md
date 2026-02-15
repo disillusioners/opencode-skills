@@ -1,7 +1,7 @@
 ---
 name: opencode-web
 description: "Control and operate oh-my-opencode via web API interface using the Go-based opencode_skill."
-metadata: {"version": "1.0.0", "author": "Kha Nguyen", "license": "MIT", "github_url": "https://github.com/disillusioners/opencode-skills"}
+metadata: {"version": "1.1.0", "author": "Kha Nguyen", "license": "MIT", "github_url": "https://github.com/disillusioners/opencode-skills"}
 ---
 
 # OpenCode Web Controller (Go)
@@ -38,15 +38,46 @@ If you run `init-session` with the same PROJECT and SESSION_NAME, the old OpenCo
 ### 2. Send Commands
 **Syntax:**
 ```bash
-opencode_skill <PROJECT> <SESSION_NAME> <MESSAGE> [options]
+opencode_skill [flags] <PROJECT> <SESSION_NAME> <MESSAGE>
 ```
+
+> **Note:** Flags must come **before** positional arguments (Go flag package behavior).
 
 - `<PROJECT>`: The project identifier used when initializing the session.
 - `<SESSION_NAME>`: The session name used when initializing the session.
 - `<MESSAGE>`: Text to send, or a command starting with `/`.
-- `[options]`:
-    - `-agent <NAME>`: Switch agent (Default: `sisyphus`, Options: `prometheus`, `atlas`).
-    - `--help`: Show all available options.
+- `[flags]`:
+    - `--sync`: Send prompt AND wait for result in a single command (blocking).
+    - `--quiet`: Suppress informational messages (keeps errors visible). Returns clean response only.
+    - `--agent <NAME>`: Switch agent (Default: `sisyphus`, Options: `prometheus`, `atlas`).
+    - `--model <ID>`: Model ID (Default: `zai-coding-plan/glm-5`).
+
+### Sync Mode (`--sync`)
+The `--sync` flag combines sending a prompt and waiting for results into a single command:
+
+```bash
+# Instead of two commands:
+opencode_skill myapp feature-A "Fix the bug"
+opencode_skill myapp feature-A /wait
+
+# Use one command (flags first!):
+opencode_skill --sync myapp feature-A "Fix the bug"
+```
+
+### Quiet Mode (`--quiet`)
+The `--quiet` flag suppresses verbose metadata (token counts, session IDs, status messages). Only the response content is returned:
+
+```bash
+# Normal output includes metadata
+opencode_skill myapp feature-A /wait
+
+# Quiet mode returns only the response
+opencode_skill --quiet myapp feature-A /wait
+
+# Combine sync + quiet for clean, one-shot responses
+opencode_skill --sync --quiet myapp feature-A "What is 2+2?"
+# Output: {"result": "4"}
+```
 
 ### Non-Blocking Message Submission
 All message submissions (PROMPT, COMMAND, ANSWER) return **immediately** with a confirmation:
@@ -72,13 +103,19 @@ opencode_skill <PROJECT> <SESSION_NAME> /wait
 **Basic Flow:**
 ```bash
 # Send a message or prompt
-opencode_skill <PROJECT> <SESSION_NAME> "Your request here"
+opencode_skill myapp feature-A "Your request here"
 
 # Check status (non-blocking)
-opencode_skill <PROJECT> <SESSION_NAME> /status
+opencode_skill myapp feature-A /status
 
 # Wait for result (blocking, up to 10 min)
-opencode_skill <PROJECT> <SESSION_NAME> /wait
+opencode_skill myapp feature-A /wait
+
+# Sync mode - send and wait in one command (flags first!)
+opencode_skill --sync myapp feature-A "Your request here"
+
+# Sync + quiet - clean response only
+opencode_skill --sync --quiet myapp feature-A "Your request here"
 ```
 ### Interactive Questions
 If the agent asks a question (e.g., requires clarification), the wrapper will prompt you:
@@ -110,6 +147,12 @@ opencode_skill <PROJECT> <SESSION_NAME> /answer "ESLint" "Jest"
 2.  **Request**: `opencode_skill myapp feature-A "Your request here" -agent sisyphus`
 3.  **Answer**: `opencode_skill myapp feature-A /answer "Option 1" "Option 2"` 
 4.  **Wait until completion**: `opencode_skill myapp feature-A /wait`
+
+**Sync Workflow (Simpler - for quick tasks)**
+1.  **Initialize**: `opencode_skill init-session myapp feature-A /path/to/project`
+2.  **Request + Wait**: `opencode_skill --sync myapp feature-A "Your request here"`
+3.  **Answer if needed**: `opencode_skill myapp feature-A /answer "Option 1"`
+4.  **Wait again if answered**: `opencode_skill myapp feature-A /wait`
 
 **Plan & Execute (For high complexity tasks that require planning)**
 1.  **Initialize**: `opencode_skill init-session myapp feature-A /path/to/project`

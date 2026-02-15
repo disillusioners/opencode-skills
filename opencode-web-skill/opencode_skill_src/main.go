@@ -81,10 +81,11 @@ func main() {
 	isDaemon := flag.Bool("daemon", false, "Run as daemon")
 	agent := flag.String("agent", config.DefaultAgent, "Agent name")
 	model := flag.String("model", "zai-coding-plan/glm-5", "Model ID")
+	sync := flag.Bool("sync", false, "Send prompt and wait for result synchronously")
+	quiet := flag.Bool("quiet", false, "Suppress informational messages (keep errors)")
 
 	flag.Parse()
 
-	// Daemon doesn't need database access
 	if *isDaemon {
 		registry, err := daemon.NewRegistry(config.SessionMapFile)
 		if err != nil {
@@ -141,10 +142,13 @@ func main() {
 	}
 
 	// Normal run: <PROJECT> <SESSION_NAME> [MESSAGE...]
+	// Note: Flags must come BEFORE positional arguments (Go flag package behavior)
 	if len(args) < 2 {
-		fmt.Println("Usage: opencode_skill <PROJECT> <SESSION_NAME> <MESSAGE> [options]")
-		fmt.Println("   or: opencode_skill <PROJECT> <SESSION_NAME> /wait")
-		fmt.Println("   or: opencode_skill <PROJECT> <SESSION_NAME> /status")
+		fmt.Println("Usage: opencode_skill [flags] <PROJECT> <SESSION_NAME> <MESSAGE>")
+		fmt.Println("   or: opencode_skill [flags] <PROJECT> <SESSION_NAME> /wait")
+		fmt.Println("   or: opencode_skill [flags] <PROJECT> <SESSION_NAME> /status")
+		fmt.Println("")
+		fmt.Println("Flags: --sync, --quiet, --agent, --model")
 		os.Exit(1)
 	}
 
@@ -172,6 +176,7 @@ func main() {
 
 	// Now create the real client with session ID and metadata
 	c = client.NewClientWithMeta(sessionData.ID, project, sessionName)
+	c.SetQuiet(*quiet)
 
 	// Ensure session is started in daemon with correct working dir
 	_, err = c.SendRequest("START_SESSION", map[string]string{"working_dir": sessionData.WorkingDir})
@@ -230,8 +235,12 @@ func main() {
 			return
 		}
 
-		fmt.Printf("Answer status: %v\n", res["message"])
-		fmt.Printf("[SUBMITTED] Run: opencode_skill %s %s /wait\n", project, sessionName)
+		if *sync {
+			c.WaitForResult()
+		} else {
+			fmt.Printf("Answer status: %v\n", res["message"])
+			fmt.Printf("[SUBMITTED] Run: opencode_skill %s %s /wait\n", project, sessionName)
+		}
 
 	} else if strings.HasPrefix(cmd, "/") {
 		// Command
@@ -256,8 +265,12 @@ func main() {
 			return
 		}
 
-		fmt.Printf("Command sent: %v\n", res["message"])
-		fmt.Printf("[SUBMITTED] Run: opencode_skill %s %s /wait\n", project, sessionName)
+		if *sync {
+			c.WaitForResult()
+		} else {
+			fmt.Printf("Command sent: %v\n", res["message"])
+			fmt.Printf("[SUBMITTED] Run: opencode_skill %s %s /wait\n", project, sessionName)
+		}
 
 	} else {
 		// Prompt
@@ -279,8 +292,12 @@ func main() {
 			return
 		}
 
-		fmt.Printf("Prompt sent: %v\n", res["message"])
-		fmt.Printf("[SUBMITTED] Run: opencode_skill %s %s /wait\n", project, sessionName)
+		if *sync {
+			c.WaitForResult()
+		} else {
+			fmt.Printf("Prompt sent: %v\n", res["message"])
+			fmt.Printf("[SUBMITTED] Run: opencode_skill %s %s /wait\n", project, sessionName)
+		}
 	}
 }
 
@@ -302,7 +319,13 @@ func printUsage() {
 	fmt.Println("  opencode_skill stop")
 	fmt.Println("  opencode_skill restart")
 	fmt.Println("  opencode_skill init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
-	fmt.Println("  opencode_skill <PROJECT> <SESSION_NAME> <MESSAGE> [options]")
-	fmt.Println("  opencode_skill <PROJECT> <SESSION_NAME> /wait")
-	fmt.Println("  opencode_skill <PROJECT> <SESSION_NAME> /status")
+	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> <MESSAGE>")
+	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> /wait")
+	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> /status")
+	fmt.Println("")
+	fmt.Println("Flags (must come before positional arguments):")
+	fmt.Println("  --sync    Send prompt and wait for result synchronously")
+	fmt.Println("  --quiet   Suppress informational messages (keep errors)")
+	fmt.Println("  --agent   Agent name (default: sisyphus)")
+	fmt.Println("  --model   Model ID (default: zai-coding-plan/glm-5)")
 }
