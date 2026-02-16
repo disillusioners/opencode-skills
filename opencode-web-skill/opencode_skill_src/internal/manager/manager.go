@@ -34,6 +34,12 @@ type SessionManager struct {
 	isWorkerBusy   bool
 	taskStartTime  time.Time
 	lastActivity   time.Time
+	params         SessionParams
+	aborted        bool
+}
+
+type SessionParams struct {
+	LastAgent string
 }
 
 type Request struct {
@@ -56,6 +62,7 @@ func NewSessionManager(sessionID string, workingDir string) *SessionManager {
 		workerDoneChan: make(chan workerResult, 1),
 		client:         api.NewClient(workingDir),
 		lastActivity:   time.Now(),
+		params:         SessionParams{LastAgent: "sisyphus"}, // Default
 	}
 }
 
@@ -129,11 +136,16 @@ func (sm *SessionManager) handleRequest(req Request) {
 	switch req.Type {
 	case "PROMPT", "COMMAND":
 		sm.mu.Lock()
-		// Double check if we are already busy (should match SubmitRequest logic)
-		// But since we set isWorkerBusy in SubmitRequest, we just proceed.
-		// Actually, if we are ALREADY busy from a previous request that hasn't finished,
-		// SubmitRequest would have overwritten state.
-		// Realistically, Daemon checks 'State' before calling SubmitRequest.
+
+		if req.Type == "PROMPT" {
+			if p, ok := req.Payload.(types.PromptRequest); ok {
+				sm.params.LastAgent = p.Agent
+			}
+		} else if req.Type == "COMMAND" {
+			if p, ok := req.Payload.(types.CommandRequest); ok {
+				sm.params.LastAgent = p.Agent
+			}
+		}
 
 		sm.State = StateBusy
 		sm.LatestResponse = nil
@@ -207,6 +219,11 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 	defer sm.mu.Unlock()
 
 	sm.isWorkerBusy = false
+
+	if sm.aborted {
+		sm.aborted = false
+		return
+	}
 
 	if res.Error != nil {
 		sm.LatestResponse = map[string]interface{}{"error": res.Error.Error()}
@@ -298,7 +315,7 @@ func (sm *SessionManager) performFix() {
 	sm.mu.Unlock()
 
 	req := types.PromptRequest{
-		Agent: "sisyphus",
+		Agent: sm.params.LastAgent,
 		Model: types.ModelDetails{ProviderID: "zai-coding-plan", ModelID: "glm-5"},
 		Parts: []types.Part{{Type: "text", Text: "continue"}},
 	}

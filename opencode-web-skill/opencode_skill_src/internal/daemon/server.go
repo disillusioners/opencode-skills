@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"opencode_skill/internal/api"
 	"opencode_skill/internal/config"
@@ -222,18 +223,26 @@ func (s *Server) handleConnection(conn net.Conn) {
 			break
 		}
 
-		if err := api.NewClient(session.WorkingDir).AbortSession(session.ID); err != nil {
-			log.Printf("Failed to abort session: %v", err)
-			response = map[string]interface{}{"status": "error", "message": "Failed to abort session: " + err.Error()}
-			break
+		// Call remote abort
+		abortErr := api.NewClient(session.WorkingDir).AbortSession(session.ID)
+		if abortErr != nil {
+			log.Printf("Warning: Failed to abort remote session: %v", abortErr)
+		} else {
+			// Wait for remote abort to propagate
+			time.Sleep(3 * time.Second)
 		}
 
-		if err := s.registry.Delete(project, sessionName); err != nil {
-			log.Printf("Failed to delete session from registry: %v", err)
+		// Reset local manager state
+		if sm, exists := s.sessions[session.ID]; exists {
+			sm.AbortTask()
 		}
 
-		log.Printf("Aborted session %s/%s", project, sessionName)
-		response = map[string]interface{}{"status": "ok"}
+		log.Printf("Aborted tasks for session %s/%s", project, sessionName)
+		if abortErr != nil {
+			response = map[string]interface{}{"status": "ok", "message": "Local tasks aborted, but remote abort failed: " + abortErr.Error()}
+		} else {
+			response = map[string]interface{}{"status": "ok", "message": "Session aborted and ready for new input"}
+		}
 
 	case "LIST_SESSIONS":
 		sessions, err := s.registry.List()
