@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"encoding/json"
 	"log"
 	"sync"
 	"time"
@@ -18,16 +19,26 @@ const (
 	StateWaitingForInput State = "WAITING_FOR_INPUT"
 )
 
+type PersistedState struct {
+	LastAgent      string
+	IsAgentLocked  bool
+	State          string
+	LatestResponse string
+	Questions      string
+	LastActivity   string
+}
+
 type SessionManager struct {
 	SessionID      string
 	State          State
 	LatestResponse interface{}
 	Questions      []api.Question
 
-	mu        sync.RWMutex // Protects State, LatestResponse, Questions, isWorkerBusy
-	inputChan chan Request
-	stopChan  chan struct{}
-	client    *api.Client
+	mu            sync.RWMutex // Protects State, LatestResponse, Questions, isWorkerBusy
+	inputChan     chan Request
+	stopChan      chan struct{}
+	client        *api.Client
+	isAgentLocked bool
 
 	// Worker tracking
 	workerDoneChan chan workerResult
@@ -53,8 +64,8 @@ type workerResult struct {
 	Error  error
 }
 
-func NewSessionManager(sessionID string, workingDir string) *SessionManager {
-	return &SessionManager{
+func NewSessionManager(sessionID string, workingDir string, persistedState *PersistedState) *SessionManager {
+	sm := &SessionManager{
 		SessionID:      sessionID,
 		State:          StateIdle,
 		inputChan:      make(chan Request, 10),
@@ -62,8 +73,70 @@ func NewSessionManager(sessionID string, workingDir string) *SessionManager {
 		workerDoneChan: make(chan workerResult, 1),
 		client:         api.NewClient(workingDir),
 		lastActivity:   time.Now(),
-		params:         SessionParams{LastAgent: "sisyphus"}, // Default
+		params:         SessionParams{LastAgent: "sisyphus"},
 	}
+
+	if persistedState != nil {
+		sm.restoreFromPersistedState(persistedState)
+	}
+
+	return sm
+}
+
+func (sm *SessionManager) restoreFromPersistedState(data *PersistedState) {
+	if data.LastAgent != "" {
+		sm.params.LastAgent = data.LastAgent
+	}
+	if data.State != "" {
+		sm.State = State(data.State)
+	}
+	sm.isAgentLocked = data.IsAgentLocked
+	if data.Questions != "" && data.Questions != "[]" {
+		var questions []api.Question
+		if err := json.Unmarshal([]byte(data.Questions), &questions); err == nil {
+			sm.Questions = questions
+		}
+	}
+	if data.LatestResponse != "" {
+		var response interface{}
+		if err := json.Unmarshal([]byte(data.LatestResponse), &response); err == nil {
+			sm.LatestResponse = response
+		}
+	}
+	if data.LastActivity != "" {
+		if t, err := time.Parse(time.RFC3339, data.LastActivity); err == nil {
+			sm.lastActivity = t
+		}
+	}
+}
+
+func (sm *SessionManager) SaveState() PersistedState {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	questionsJSON, _ := json.Marshal(sm.Questions)
+	responseJSON, _ := json.Marshal(sm.LatestResponse)
+
+	return PersistedState{
+		LastAgent:      sm.params.LastAgent,
+		IsAgentLocked:  sm.isAgentLocked,
+		State:          string(sm.State),
+		LatestResponse: string(responseJSON),
+		Questions:      string(questionsJSON),
+		LastActivity:   sm.lastActivity.Format(time.RFC3339),
+	}
+}
+
+func (sm *SessionManager) SetLastAgent(agent string) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.params.LastAgent = agent
+}
+
+func (sm *SessionManager) SetAgentLocked(locked bool) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.isAgentLocked = locked
 }
 
 func (sm *SessionManager) Start() {

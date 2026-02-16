@@ -60,10 +60,25 @@ func (s *Server) Start() error {
 		log.Printf("Warning: failed to list sessions for recovery: %v", err)
 	} else {
 		for _, session := range sessions {
-			sm := manager.NewSessionManager(session.ID, session.WorkingDir)
+			fullData, err := s.registry.Get(session.Project, session.SessionName)
+			if err != nil {
+				log.Printf("Warning: failed to get full data for session %s/%s: %v", session.Project, session.SessionName, err)
+				fullData = &session
+			}
+
+			persistedState := &manager.PersistedState{
+				LastAgent:      fullData.LastAgent,
+				IsAgentLocked:  fullData.IsAgentLocked,
+				State:          fullData.State,
+				LatestResponse: fullData.LatestResponse,
+				Questions:      fullData.Questions,
+				LastActivity:   fullData.LastActivity,
+			}
+
+			sm := manager.NewSessionManager(session.ID, session.WorkingDir, persistedState)
 			sm.Start()
 			s.sessions[session.ID] = sm
-			log.Printf("Recovered session: %s %s (ID: %s, Dir: %s)", session.Project, session.SessionName, session.ID, session.WorkingDir)
+			log.Printf("Recovered session: %s %s (ID: %s, Dir: %s, State: %s)", session.Project, session.SessionName, session.ID, session.WorkingDir, fullData.State)
 		}
 		log.Printf("Recovered %d session(s) from registry", len(sessions))
 	}
@@ -154,7 +169,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 			sm.UpdateWorkingDir(workingDir)
 			log.Printf("Updated working dir for session %s to %s", req.SessionID, workingDir)
 		} else {
-			sm := manager.NewSessionManager(req.SessionID, workingDir)
+			sm := manager.NewSessionManager(req.SessionID, workingDir, nil)
 			sm.Start()
 			s.sessions[req.SessionID] = sm
 			log.Printf("Started manager for session %s with dir %s", req.SessionID, workingDir)
@@ -292,7 +307,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 			// Handle /start-work: lock agent to atlas
 			if normalizedText == "start-work" {
 				if sessionData, err := s.registry.FindByID(req.SessionID); err == nil {
-					if err := s.registry.UpdateLockedAgent(sessionData.Project, sessionData.SessionName, "atlas"); err != nil {
+					if err := s.registry.UpdateAgentState(sessionData.Project, sessionData.SessionName, "atlas", true); err != nil {
 						log.Printf("Failed to lock agent for session %s: %v", req.SessionID, err)
 					} else {
 						log.Printf("Locked agent to 'atlas' for session %s", req.SessionID)
@@ -317,12 +332,11 @@ func (s *Server) handleConnection(conn net.Conn) {
 				}
 			}
 
-			// Check for locked_agent and override agent if set
 			if req.Action == "PROMPT" || req.Action == "COMMAND" {
 				if sessionData, err := s.registry.FindByID(req.SessionID); err == nil {
-					if sessionData.LockedAgent != "" {
-						req.Payload["agent"] = sessionData.LockedAgent
-						log.Printf("Using locked agent '%s' for session %s", sessionData.LockedAgent, req.SessionID)
+					if sessionData.IsAgentLocked && sessionData.LastAgent != "" {
+						req.Payload["agent"] = sessionData.LastAgent
+						log.Printf("Using locked agent '%s' for session %s", sessionData.LastAgent, req.SessionID)
 					}
 				}
 			}

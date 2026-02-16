@@ -37,8 +37,14 @@ func TestRegistry_CreateAndGet(t *testing.T) {
 	if session.WorkingDir != "/home/user/project" {
 		t.Errorf("Expected working dir /home/user/project, got %s", session.WorkingDir)
 	}
-	if session.LockedAgent != "" {
-		t.Errorf("Expected empty locked_agent, got %s", session.LockedAgent)
+	if session.LastAgent != "" {
+		t.Errorf("Expected empty last_agent, got %s", session.LastAgent)
+	}
+	if session.IsAgentLocked != false {
+		t.Errorf("Expected IsAgentLocked false, got %v", session.IsAgentLocked)
+	}
+	if session.State != "IDLE" {
+		t.Errorf("Expected state IDLE, got %s", session.State)
 	}
 }
 
@@ -307,7 +313,7 @@ func TestRegistry_CreateDirectory(t *testing.T) {
 	}
 }
 
-func TestRegistry_UpdateLockedAgent(t *testing.T) {
+func TestRegistry_UpdateAgentState(t *testing.T) {
 	t.Parallel()
 
 	dbPath := filepath.Join(t.TempDir(), "test.db")
@@ -321,9 +327,9 @@ func TestRegistry_UpdateLockedAgent(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	err = registry.UpdateLockedAgent("project", "session", "atlas")
+	err = registry.UpdateAgentState("project", "session", "atlas", true)
 	if err != nil {
-		t.Fatalf("UpdateLockedAgent failed: %v", err)
+		t.Fatalf("UpdateAgentState failed: %v", err)
 	}
 
 	session, err := registry.Get("project", "session")
@@ -331,12 +337,15 @@ func TestRegistry_UpdateLockedAgent(t *testing.T) {
 		t.Fatalf("Get failed: %v", err)
 	}
 
-	if session.LockedAgent != "atlas" {
-		t.Errorf("Expected locked_agent 'atlas', got '%s'", session.LockedAgent)
+	if session.LastAgent != "atlas" {
+		t.Errorf("Expected last_agent 'atlas', got '%s'", session.LastAgent)
+	}
+	if !session.IsAgentLocked {
+		t.Errorf("Expected IsAgentLocked true, got false")
 	}
 }
 
-func TestRegistry_UpdateLockedAgent_NotFound(t *testing.T) {
+func TestRegistry_UpdateAgentState_NotFound(t *testing.T) {
 	t.Parallel()
 
 	dbPath := filepath.Join(t.TempDir(), "test.db")
@@ -345,7 +354,7 @@ func TestRegistry_UpdateLockedAgent_NotFound(t *testing.T) {
 		t.Fatalf("NewRegistry failed: %v", err)
 	}
 
-	err = registry.UpdateLockedAgent("nonexistent", "session", "atlas")
+	err = registry.UpdateAgentState("nonexistent", "session", "atlas", true)
 	if err != ErrNotFound {
 		t.Errorf("Expected ErrNotFound, got %v", err)
 	}
@@ -396,7 +405,7 @@ func TestRegistry_FindByID_NotFound(t *testing.T) {
 	}
 }
 
-func TestRegistry_FindByID_WithLockedAgent(t *testing.T) {
+func TestRegistry_FindByID_WithAgentState(t *testing.T) {
 	t.Parallel()
 
 	dbPath := filepath.Join(t.TempDir(), "test.db")
@@ -410,9 +419,9 @@ func TestRegistry_FindByID_WithLockedAgent(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	err = registry.UpdateLockedAgent("project", "session", "atlas")
+	err = registry.UpdateAgentState("project", "session", "atlas", true)
 	if err != nil {
-		t.Fatalf("UpdateLockedAgent failed: %v", err)
+		t.Fatalf("UpdateAgentState failed: %v", err)
 	}
 
 	session, err := registry.FindByID("session-id-456")
@@ -420,7 +429,173 @@ func TestRegistry_FindByID_WithLockedAgent(t *testing.T) {
 		t.Fatalf("FindByID failed: %v", err)
 	}
 
-	if session.LockedAgent != "atlas" {
-		t.Errorf("Expected locked_agent 'atlas', got '%s'", session.LockedAgent)
+	if session.LastAgent != "atlas" {
+		t.Errorf("Expected last_agent 'atlas', got '%s'", session.LastAgent)
+	}
+	if !session.IsAgentLocked {
+		t.Errorf("Expected IsAgentLocked true, got false")
+	}
+}
+
+func TestRegistry_UpdateState(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	err = registry.Create("project", "session", "id-1", "/dir1")
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	err = registry.UpdateState("project", "session", "BUSY")
+	if err != nil {
+		t.Fatalf("UpdateState failed: %v", err)
+	}
+
+	session, err := registry.Get("project", "session")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	if session.State != "BUSY" {
+		t.Errorf("Expected state BUSY, got %s", session.State)
+	}
+}
+
+func TestRegistry_UpdateState_NotFound(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	err = registry.UpdateState("nonexistent", "session", "BUSY")
+	if err != ErrNotFound {
+		t.Errorf("Expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestRegistry_UpdateLastActivity(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	err = registry.Create("project", "session", "id-1", "/dir1")
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	timestamp := "2026-02-16T14:00:00Z"
+	err = registry.UpdateLastActivity("project", "session", timestamp)
+	if err != nil {
+		t.Fatalf("UpdateLastActivity failed: %v", err)
+	}
+
+	session, err := registry.Get("project", "session")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	if session.LastActivity != timestamp {
+		t.Errorf("Expected last_activity %s, got %s", timestamp, session.LastActivity)
+	}
+}
+
+func TestRegistry_UpdateLastActivity_NotFound(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	err = registry.UpdateLastActivity("nonexistent", "session", "2026-02-16T14:00:00Z")
+	if err != ErrNotFound {
+		t.Errorf("Expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestRegistry_UpdateSessionData(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	err = registry.Create("project", "session", "id-1", "/dir1")
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	updatedData := SessionData{
+		LastAgent:      "atlas",
+		IsAgentLocked:  true,
+		State:          "BUSY",
+		LatestResponse: `{"result": "success"}`,
+		Questions:      `[{"id": "q1", "text": "Question?"}]`,
+		LastActivity:   "2026-02-16T14:00:00Z",
+	}
+
+	err = registry.UpdateSessionData("project", "session", updatedData)
+	if err != nil {
+		t.Fatalf("UpdateSessionData failed: %v", err)
+	}
+
+	session, err := registry.Get("project", "session")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	if session.LastAgent != "atlas" {
+		t.Errorf("Expected last_agent atlas, got %s", session.LastAgent)
+	}
+	if !session.IsAgentLocked {
+		t.Errorf("Expected IsAgentLocked true, got false")
+	}
+	if session.State != "BUSY" {
+		t.Errorf("Expected state BUSY, got %s", session.State)
+	}
+	if session.LatestResponse != `{"result": "success"}` {
+		t.Errorf("Expected latest_response JSON, got %s", session.LatestResponse)
+	}
+	if session.Questions != `[{"id": "q1", "text": "Question?"}]` {
+		t.Errorf("Expected questions JSON, got %s", session.Questions)
+	}
+	if session.LastActivity != "2026-02-16T14:00:00Z" {
+		t.Errorf("Expected last_activity timestamp, got %s", session.LastActivity)
+	}
+}
+
+func TestRegistry_UpdateSessionData_NotFound(t *testing.T) {
+	t.Parallel()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	registry, err := NewRegistry(dbPath)
+	if err != nil {
+		t.Fatalf("NewRegistry failed: %v", err)
+	}
+
+	updatedData := SessionData{
+		LastAgent:     "atlas",
+		IsAgentLocked: true,
+		State:         "BUSY",
+	}
+
+	err = registry.UpdateSessionData("nonexistent", "session", updatedData)
+	if err != ErrNotFound {
+		t.Errorf("Expected ErrNotFound, got %v", err)
 	}
 }
