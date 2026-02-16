@@ -47,6 +47,7 @@ type SessionManager struct {
 	lastActivity   time.Time
 	params         SessionParams
 	aborted        bool
+	OnStateChange  func(PersistedState)
 }
 
 type SessionParams struct {
@@ -131,12 +132,14 @@ func (sm *SessionManager) SetLastAgent(agent string) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.params.LastAgent = agent
+	sm.OnStateChange(sm.SaveState())
 }
 
 func (sm *SessionManager) SetAgentLocked(locked bool) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.isAgentLocked = locked
+	sm.OnStateChange(sm.SaveState())
 }
 
 func (sm *SessionManager) Start() {
@@ -160,6 +163,7 @@ func (sm *SessionManager) SubmitRequest(req Request) {
 		sm.State = StateBusy
 		sm.LatestResponse = nil
 		sm.isWorkerBusy = true // Optimistic lock
+		sm.OnStateChange(sm.SaveState())
 	}
 	sm.mu.Unlock()
 
@@ -309,6 +313,7 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 	} else {
 		sm.State = StateIdle
 	}
+	sm.OnStateChange(sm.SaveState())
 }
 
 func (sm *SessionManager) pollQuestions() {

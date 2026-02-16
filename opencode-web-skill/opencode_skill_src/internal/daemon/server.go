@@ -76,6 +76,7 @@ func (s *Server) Start() error {
 			}
 
 			sm := manager.NewSessionManager(session.ID, session.WorkingDir, persistedState)
+			s.setupStatePersistence(sm)
 			sm.Start()
 			s.sessions[session.ID] = sm
 			log.Printf("Recovered session: %s %s (ID: %s, Dir: %s, State: %s)", session.Project, session.SessionName, session.ID, session.WorkingDir, fullData.State)
@@ -170,6 +171,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 			log.Printf("Updated working dir for session %s to %s", req.SessionID, workingDir)
 		} else {
 			sm := manager.NewSessionManager(req.SessionID, workingDir, nil)
+			s.setupStatePersistence(sm)
 			sm.Start()
 			s.sessions[req.SessionID] = sm
 			log.Printf("Started manager for session %s with dir %s", req.SessionID, workingDir)
