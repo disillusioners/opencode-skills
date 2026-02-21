@@ -32,6 +32,7 @@ var (
 	WrapperDir     string
 	PidFile        string
 	SessionMapFile string
+	LogFile        string
 )
 
 func init() {
@@ -50,6 +51,7 @@ func init() {
 
 	PidFile = filepath.Join(WrapperDir, "daemon.pid")
 	SessionMapFile = filepath.Join(WrapperDir, "sessions.db")
+	LogFile = filepath.Join(WrapperDir, "daemon.log")
 }
 
 func getProjectRoot() (string, error) {

@@ -157,17 +157,25 @@ func (sm *SessionManager) Stop() {
 }
 
 func (sm *SessionManager) SubmitRequest(req Request) {
+	log.Printf("SubmitRequest: acquiring lock for %s", req.Type)
 	// Pre-set state to avoid race condition where GetSnapshot sees IDLE before loop picks up request
 	sm.mu.Lock()
+	log.Printf("SubmitRequest: lock acquired for %s", req.Type)
 	if req.Type == "PROMPT" || req.Type == "COMMAND" {
 		sm.State = StateBusy
 		sm.LatestResponse = nil
 		sm.isWorkerBusy = true // Optimistic lock
-		sm.OnStateChange(sm.SaveState())
+		log.Printf("SubmitRequest: OnStateChange is nil: %v", sm.OnStateChange == nil)
+		if sm.OnStateChange != nil {
+			log.Printf("SubmitRequest: calling OnStateChange")
+			sm.OnStateChange(sm.SaveState())
+			log.Printf("SubmitRequest: OnStateChange done")
+		}
 	}
 	sm.mu.Unlock()
-
+	log.Printf("SubmitRequest: lock released, sending to channel")
 	sm.inputChan <- req
+	log.Printf("SubmitRequest: sent to channel successfully")
 }
 
 func (sm *SessionManager) GetSnapshot() map[string]interface{} {

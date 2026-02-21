@@ -326,6 +326,6 @@ func printUsage() {
 	fmt.Println("Flags (must come before positional arguments):")
 	fmt.Println("  --sync    Send prompt and wait for result synchronously")
 	fmt.Println("  --quiet   Suppress informational messages (keep errors)")
-	fmt.Println("  --agent   Agent name (default: sisyphus)")
+	fmt.Println("  --agent   Agent name (default: orchestrator)")
 	fmt.Println("  --model   Model ID (default: zai-coding-plan/glm-5)")
 }

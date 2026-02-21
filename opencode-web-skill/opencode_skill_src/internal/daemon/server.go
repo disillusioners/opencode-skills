@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -17,6 +18,18 @@ import (
 	"opencode_skill/internal/manager"
 	"opencode_skill/internal/types"
 )
+
+func setupLogging() error {
+	logFile, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return err
+	}
+	// Log to both file and stdout
+	multiWriter := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(multiWriter)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	return nil
+}
 
 type Server struct {
 	sessions map[string]*manager.SessionManager
@@ -42,6 +55,11 @@ func NewServerWithPort(registry *Registry, port int) *Server {
 }
 
 func (s *Server) Start() error {
+	if err := setupLogging(); err != nil {
+		return fmt.Errorf("failed to setup logging: %v", err)
+	}
+	log.Printf("Daemon logging to %s", config.LogFile)
+
 	// Clean up stale PID file if process is dead
 	cleanupStalePID()
 
@@ -140,6 +158,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
 	if err != nil {
+		log.Printf("Connection read error: %v", err)
 		return
 	}
 
@@ -150,9 +169,12 @@ func (s *Server) handleConnection(conn net.Conn) {
 	}
 
 	if err := json.Unmarshal(buf[:n], &req); err != nil {
+		log.Printf("JSON parse error: %v", err)
 		s.sendError(conn, "Invalid JSON")
 		return
 	}
+
+	log.Printf("Request: action=%s session=%s", req.Action, req.SessionID)
 
 	response := map[string]interface{}{"status": "error", "message": "Unknown action"}
 
@@ -287,6 +309,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	case "PROMPT", "COMMAND", "ANSWER", "FIX":
 		if sm, ok := s.sessions[req.SessionID]; ok {
+			log.Printf("Found session %s for action %s", req.SessionID, req.Action)
 			// Extract text content for special handling regarding busy state and agent locking
 			targetText := ""
 			if req.Action == "PROMPT" {
@@ -319,7 +342,9 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 			// Verify BUSY state for PROMPT
 			if req.Action == "PROMPT" {
+				log.Printf("Checking busy state for session %s", req.SessionID)
 				snapshot := sm.GetSnapshot()
+				log.Printf("Snapshot state: %v (type: %T)", snapshot["state"], snapshot["state"])
 				state, _ := snapshot["state"].(manager.State)
 
 				// Check if special prompt
@@ -361,14 +386,18 @@ func (s *Server) handleConnection(conn net.Conn) {
 				internalPayload = p
 			}
 
+			log.Printf("Submitting request for session %s", req.SessionID)
 			sm.SubmitRequest(manager.Request{Type: req.Action, Payload: internalPayload})
+			log.Printf("Request submitted for session %s", req.SessionID)
 			response = map[string]interface{}{"status": "ok", "message": "Request submitted"}
 
 		} else {
+			log.Printf("Session %s not found for action %s", req.SessionID, req.Action)
 			response = map[string]interface{}{"status": "error", "message": "Session not found"}
 		}
 	}
 
+	log.Printf("Sending response: %v", response["status"])
 	s.sendResponse(conn, response)
 }
 
