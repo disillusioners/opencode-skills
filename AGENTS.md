@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This repository contains the **OpenCode Web Skill** - a Go-based daemon-client application for controlling OpenCode AI agents (Sisyphus, Prometheus, Atlas) via web API.
+This repository contains the **OpenCode Web Skill** - a Go-based daemon-client application for controlling OpenCode AI agent (Orchestrator) via web API, designed for oh-my-opencode-slim.
 
 ## Project Structure
 
@@ -128,7 +128,7 @@ import (
 // Good
 type SessionData struct { ... }
 func (c *Client) SendRequest(...) { ... }
-const DefaultAgent = "sisyphus"
+const DefaultAgent = "orchestrator"
 
 // Private
 func getString(m map, key string) string { ... }

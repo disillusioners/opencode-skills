@@ -9,7 +9,7 @@ import (
 // OpenCode Configuration
 const (
 	OpenCodeURL  = "http://127.0.0.1:4096"
-	DefaultAgent = "sisyphus"
+	DefaultAgent = "orchestrator"
 	DefaultModel = "zai-coding-plan/glm-5"
 )
 
