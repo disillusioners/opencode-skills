@@ -111,10 +111,7 @@ func (sm *SessionManager) restoreFromPersistedState(data *PersistedState) {
 	}
 }
 
-func (sm *SessionManager) SaveState() PersistedState {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-
+func (sm *SessionManager) saveStateLocked() PersistedState {
 	questionsJSON, _ := json.Marshal(sm.Questions)
 	responseJSON, _ := json.Marshal(sm.LatestResponse)
 
@@ -128,18 +125,34 @@ func (sm *SessionManager) SaveState() PersistedState {
 	}
 }
 
+func (sm *SessionManager) SaveState() PersistedState {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.saveStateLocked()
+}
+
 func (sm *SessionManager) SetLastAgent(agent string) {
 	sm.mu.Lock()
-	defer sm.mu.Unlock()
 	sm.params.LastAgent = agent
-	sm.OnStateChange(sm.SaveState())
+	if sm.OnStateChange != nil {
+		stateToSave := sm.saveStateLocked()
+		sm.mu.Unlock()
+		sm.OnStateChange(stateToSave)
+	} else {
+		sm.mu.Unlock()
+	}
 }
 
 func (sm *SessionManager) SetAgentLocked(locked bool) {
 	sm.mu.Lock()
-	defer sm.mu.Unlock()
 	sm.isAgentLocked = locked
-	sm.OnStateChange(sm.SaveState())
+	if sm.OnStateChange != nil {
+		stateToSave := sm.saveStateLocked()
+		sm.mu.Unlock()
+		sm.OnStateChange(stateToSave)
+	} else {
+		sm.mu.Unlock()
+	}
 }
 
 func (sm *SessionManager) Start() {
@@ -168,7 +181,10 @@ func (sm *SessionManager) SubmitRequest(req Request) {
 		log.Printf("SubmitRequest: OnStateChange is nil: %v", sm.OnStateChange == nil)
 		if sm.OnStateChange != nil {
 			log.Printf("SubmitRequest: calling OnStateChange")
-			sm.OnStateChange(sm.SaveState())
+			stateToSave := sm.saveStateLocked()
+			sm.mu.Unlock() // avoid deadlock if OnStateChange blocks
+			sm.OnStateChange(stateToSave)
+			sm.mu.Lock()
 			log.Printf("SubmitRequest: OnStateChange done")
 		}
 	}
@@ -301,12 +317,12 @@ func (sm *SessionManager) runWorker(req Request) {
 
 func (sm *SessionManager) handleWorkerDone(res workerResult) {
 	sm.mu.Lock()
-	defer sm.mu.Unlock()
 
 	sm.isWorkerBusy = false
 
 	if sm.aborted {
 		sm.aborted = false
+		sm.mu.Unlock()
 		return
 	}
 
@@ -321,7 +337,14 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 	} else {
 		sm.State = StateIdle
 	}
-	sm.OnStateChange(sm.SaveState())
+
+	if sm.OnStateChange != nil {
+		stateToSave := sm.saveStateLocked()
+		sm.mu.Unlock()
+		sm.OnStateChange(stateToSave)
+	} else {
+		sm.mu.Unlock()
+	}
 }
 
 func (sm *SessionManager) pollQuestions() {
