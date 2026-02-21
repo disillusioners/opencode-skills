@@ -1,0 +1,61 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "last_run": "2026-02-21T05:03:52.179682Z",
+    "root": "/Users/nguyenminhkha/All/Code/opensource-projects/opencode-skills",
+    "include_patterns": [
+      "opencode-web-skill/opencode_skill_src/**/*.go",
+      "opencode-web-skill/opencode_skill_src/go.mod",
+      "opencode-web-skill/opencode_skill_src/Makefile",
+      "opencode-web-skill/SKILL.md",
+      "AGENTS.md"
+    ],
+    "exclude_patterns": [
+      "**/*_test.go",
+      "opencode-web-skill/opencode_skill_src/coverage.out",
+      "opencode-web-skill/opencode_skill_src/opencode_skill"
+    ],
+    "exceptions": []
+  },
+  "file_hashes": {
+    "AGENTS.md": "b486ce50de2593486cb3760c67d13234",
+    "opencode-dev/packages/app/AGENTS.md": "ce555759aad6c4e40830236aa0ea1f4d",
+    "opencode-dev/packages/app/e2e/AGENTS.md": "375ce8bb060be765b0763d324b76052a",
+    "opencode-dev/packages/desktop/AGENTS.md": "1753afb614fa477bdc27c0dc2505959c",
+    "opencode-dev/packages/opencode/AGENTS.md": "57e690b6251c0727b2be057ea251ba49",
+    "opencode-web-skill/SKILL.md": "afa1b3ead9dc056740f6ca945247ed6f",
+    "opencode-web-skill/opencode_skill_src/Makefile": "bad4b3f59df1959690f12b7cd5a9bfa1",
+    "opencode-web-skill/opencode_skill_src/go.mod": "be4c167ad95eda85113d7c16ca0fe0b7",
+    "opencode-web-skill/opencode_skill_src/internal/api/client.go": "af22acf61a0277e566d50f2af6fa818b",
+    "opencode-web-skill/opencode_skill_src/internal/api/types.go": "9ea93d57f8f2b06d4182654cb8b1802a",
+    "opencode-web-skill/opencode_skill_src/internal/client/client.go": "5b97eb10baa986012a6b7341f3051901",
+    "opencode-web-skill/opencode_skill_src/internal/config/config.go": "c0d1305fad05210f43c02c7cc35f21d1",
+    "opencode-web-skill/opencode_skill_src/internal/daemon/registry.go": "442d53a863e79ebfdaa9c136685f09b6",
+    "opencode-web-skill/opencode_skill_src/internal/daemon/server.go": "02e874e1876b8fbf85466767005cca6b",
+    "opencode-web-skill/opencode_skill_src/internal/daemon/server_persistence.go": "cce19c9c42809f05bf74c3326ac6b3ef",
+    "opencode-web-skill/opencode_skill_src/internal/manager/actions.go": "1e4bb646a40c6d52f7db1b028dedfc3d",
+    "opencode-web-skill/opencode_skill_src/internal/manager/manager.go": "77b67c388e5255dd572d48217212c1f0",
+    "opencode-web-skill/opencode_skill_src/internal/testutil/testutil.go": "862f703e646e6e79ab89f12b3199869a",
+    "opencode-web-skill/opencode_skill_src/internal/types/types.go": "f47d11120589a35dd3381fd9356ed292",
+    "opencode-web-skill/opencode_skill_src/main.go": "f19dd9c9430d0aebc57094261ee2bb56"
+  },
+  "folder_hashes": {
+    "opencode-dev/packages/app": "7369dc912baedf99a8137ca9d55dd638",
+    "opencode-dev/packages/app/e2e": "1df260c11bd7c62e13557f32169bdf15",
+    "opencode-web-skill": "f4b0e0d4a09f221ff0cdbb0c7f53b025",
+    "opencode-web-skill/opencode_skill_src/internal/testutil": "17be36c5b6edbe374880958f76f48a77",
+    "opencode-dev/packages/opencode": "f93e79fa19abd7ab76e13fb970ea74bc",
+    "opencode-web-skill/opencode_skill_src/internal/config": "9c3714c25831131dae390296174cd71d",
+    "opencode-web-skill/opencode_skill_src/internal/types": "793d2db499c0f0e0c5f90603ce96cfc6",
+    ".": "4c8ab7e2bbef496208a4a13a23321d08",
+    "opencode-web-skill/opencode_skill_src/internal/client": "c701fc984496e600adfee6857e13189d",
+    "opencode-dev/packages": "b06ab3f3f0d715fc2ecb6b37f5e50b48",
+    "opencode-web-skill/opencode_skill_src": "b5ded2c1b9471399252d3dc2966335b7",
+    "opencode-web-skill/opencode_skill_src/internal/manager": "95c62d138864285ddbc87c3cb882e5e6",
+    "opencode-web-skill/opencode_skill_src/internal/api": "fa863dcb84281e83b3d71c942cd8ed85",
+    "opencode-web-skill/opencode_skill_src/internal": "02e3e9ecc286357411e01eb1e0f256d9",
+    "opencode-dev": "b06ab3f3f0d715fc2ecb6b37f5e50b48",
+    "opencode-dev/packages/desktop": "3147d7b9a496194f33a3b9e981ece8f2",
+    "opencode-web-skill/opencode_skill_src/internal/daemon": "dad5c5b2c0dabd199ef22bc4785a278b"
+  }
+}
