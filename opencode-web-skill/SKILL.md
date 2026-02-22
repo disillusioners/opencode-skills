@@ -94,6 +94,21 @@ opencode_skill <PROJECT> <SESSION_NAME> /wait
 
 ### Available Commands
 
+**Configuration Management:**
+
+> **CRITICAL INSTRUCTION**: Do not change the configuration unless the user **explicitly** asks you to.
+
+```bash
+# Display all configurable properties and their current values
+opencode_skill config list
+
+# Get the currently configured default model
+opencode_skill config get model
+
+# Set a new default model (must be in provider/model format)
+opencode_skill config set model provider/new-model-name
+```
+
 **Basic Flow:**
 ```bash
 # Send a message or prompt

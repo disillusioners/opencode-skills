@@ -5,3 +5,4 @@ opencode-web-skill/opencode_skill_src/opencode_skill
 test_proj/*
 opencode-web-skill/opencode_skill_src/coverage.out
 opencode-web-skill/opencode_skill_src/test_output*.txt
+test-website/*

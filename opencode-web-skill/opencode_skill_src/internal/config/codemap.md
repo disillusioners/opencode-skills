@@ -16,8 +16,8 @@ The `config` package serves as the **centralized configuration management module
 // OpenCode Configuration
 const (
     OpenCodeURL  = "http://127.0.0.1:4096"
-    DefaultAgent = "sisyphus"
-    DefaultModel = "zai-coding-plan/glm-5"
+    DefaultAgent = "orchestrator"
+    DefaultModel = "litellm/glm-5"
 )
 ```
 **Pattern Implementation**: Immutable compile-time constants with semantic grouping.

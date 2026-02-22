@@ -80,7 +80,7 @@ func restartDaemon() {
 func main() {
 	isDaemon := flag.Bool("daemon", false, "Run as daemon")
 	agent := flag.String("agent", config.DefaultAgent, "Agent name")
-	model := flag.String("model", "zai-coding-plan/glm-5", "Model ID")
+	model := flag.String("model", config.GetDefaultModel(), "Model ID")
 	sync := flag.Bool("sync", false, "Send prompt and wait for result synchronously")
 	quiet := flag.Bool("quiet", false, "Suppress informational messages (keep errors)")
 
@@ -139,6 +139,65 @@ func main() {
 		}
 		fmt.Printf("[SUCCESS] Session '%s %s' initialized with ID: %s in %s\n", project, sessionName, sessionData.ID, absDir)
 		return
+	}
+
+	if command == "config" {
+		if len(args) < 2 {
+			fmt.Println("Usage: opencode_skill config list")
+			fmt.Println("   or: opencode_skill config get <key>")
+			fmt.Println("   or: opencode_skill config set <key> <value>")
+			os.Exit(1)
+		}
+
+		subcmd := args[1]
+
+		if subcmd == "list" {
+			cfg := config.LoadConfig()
+			fmt.Println("Current Configuration:")
+			fmt.Printf("  Model: %s\n", cfg.DefaultModel)
+			return
+		}
+
+		if len(args) < 3 {
+			fmt.Println("Usage: opencode_skill config get <key>")
+			fmt.Println("   or: opencode_skill config set <key> <value>")
+			os.Exit(1)
+		}
+
+		key := args[2]
+
+		if key != "model" {
+			fmt.Printf("Unknown config key: %s\n", key)
+			os.Exit(1)
+		}
+
+		if subcmd == "get" {
+			fmt.Println(config.GetDefaultModel())
+			return
+		} else if subcmd == "set" {
+			if len(args) < 4 {
+				fmt.Println("Usage: opencode_skill config set model <value>")
+				os.Exit(1)
+			}
+			val := args[3]
+
+			// Validate format for model
+			if !strings.Contains(val, "/") {
+				fmt.Println("Error: Model must follow 'provider/model-name' format (e.g., litellm/glm-5)")
+				os.Exit(1)
+			}
+
+			cfg := config.LoadConfig()
+			cfg.DefaultModel = val
+			if err := config.SaveConfig(cfg); err != nil {
+				log.Fatalf("Failed to save config: %v", err)
+			}
+			fmt.Printf("Successfully set model to %s\n", val)
+			return
+		} else {
+			fmt.Printf("Unknown config command: %s\n", subcmd)
+			os.Exit(1)
+		}
 	}
 
 	// Normal run: <PROJECT> <SESSION_NAME> [MESSAGE...]
@@ -306,7 +365,7 @@ func parseModel(m string) types.ModelDetails {
 		parts := strings.SplitN(m, "/", 2)
 		return types.ModelDetails{ProviderID: parts[0], ModelID: parts[1]}
 	}
-	return types.ModelDetails{ProviderID: "zai-coding-plan", ModelID: m}
+	return types.ModelDetails{ProviderID: "litellm", ModelID: m}
 }
 
 func formatSubmittedMessage(project, session string) string {
@@ -322,10 +381,13 @@ func printUsage() {
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> <MESSAGE>")
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> /wait")
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> /status")
+	fmt.Println("  opencode_skill config list")
+	fmt.Println("  opencode_skill config get <key>")
+	fmt.Println("  opencode_skill config set <key> <value>")
 	fmt.Println("")
 	fmt.Println("Flags (must come before positional arguments):")
 	fmt.Println("  --sync    Send prompt and wait for result synchronously")
 	fmt.Println("  --quiet   Suppress informational messages (keep errors)")
 	fmt.Println("  --agent   Agent name (default: orchestrator)")
-	fmt.Println("  --model   Model ID (default: zai-coding-plan/glm-5)")
+	fmt.Printf("  --model   Model ID (default: %s)\n", config.GetDefaultModel())
 }
