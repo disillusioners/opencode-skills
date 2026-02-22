@@ -1,4 +1,4 @@
-/opencode-dev/*
+/opencode-src-ref-readonly/*
 *.pyc
 .sisyphus/*
 opencode-web-skill/opencode_skill_src/opencode_skill
