@@ -3,6 +3,7 @@ package manager
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"sync"
 	"time"
 
@@ -327,7 +328,12 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 	}
 
 	if res.Error != nil {
-		sm.LatestResponse = map[string]interface{}{"error": res.Error.Error()}
+		// Don't save timeout errors to state - they're not real errors
+		if netErr, ok := res.Error.(net.Error); ok && netErr.Timeout() {
+			sm.LatestResponse = nil
+		} else {
+			sm.LatestResponse = map[string]interface{}{"error": res.Error.Error()}
+		}
 	} else {
 		sm.LatestResponse = map[string]interface{}{"result": res.Result}
 	}
