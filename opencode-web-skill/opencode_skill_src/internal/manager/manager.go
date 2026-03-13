@@ -26,6 +26,7 @@ type PersistedState struct {
 	LatestResponse string
 	Questions      string
 	LastActivity   string
+	ResultID       uint64
 }
 
 type SessionManager struct {
@@ -48,6 +49,9 @@ type SessionManager struct {
 	params         SessionParams
 	aborted        bool
 	OnStateChange  func(PersistedState)
+
+	// Result tracking
+	ResultID uint64
 }
 
 type SessionParams struct {
@@ -109,6 +113,9 @@ func (sm *SessionManager) restoreFromPersistedState(data *PersistedState) {
 			sm.lastActivity = t
 		}
 	}
+	if data.ResultID > 0 {
+		sm.ResultID = data.ResultID
+	}
 }
 
 func (sm *SessionManager) saveStateLocked() PersistedState {
@@ -122,6 +129,7 @@ func (sm *SessionManager) saveStateLocked() PersistedState {
 		LatestResponse: string(responseJSON),
 		Questions:      string(questionsJSON),
 		LastActivity:   sm.lastActivity.Format(time.RFC3339),
+		ResultID:       sm.ResultID,
 	}
 }
 
@@ -203,6 +211,8 @@ func (sm *SessionManager) GetSnapshot() map[string]interface{} {
 		"session_id":      sm.SessionID,
 		"latest_response": sm.LatestResponse,
 		"questions":       sm.Questions,
+		"result_id":       sm.ResultID,
+		"is_worker_busy":  sm.isWorkerBusy,
 	}
 }
 
@@ -326,10 +336,17 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 		return
 	}
 
+	sm.ResultID++
 	if res.Error != nil {
-		sm.LatestResponse = map[string]interface{}{"error": res.Error.Error()}
+		sm.LatestResponse = map[string]interface{}{
+			"error":     res.Error.Error(),
+			"result_id": sm.ResultID,
+		}
 	} else {
-		sm.LatestResponse = map[string]interface{}{"result": res.Result}
+		sm.LatestResponse = map[string]interface{}{
+			"result":    res.Result,
+			"result_id": sm.ResultID,
+		}
 	}
 
 	if len(sm.Questions) > 0 {

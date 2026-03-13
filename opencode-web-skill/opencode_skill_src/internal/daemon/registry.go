@@ -21,6 +21,7 @@ type SessionData struct {
 	LatestResponse string `json:"latest_response"`
 	Questions      string `json:"questions"`
 	LastActivity   string `json:"last_activity"`
+	ResultID       uint64 `json:"result_id"`
 }
 
 var (
@@ -64,6 +65,7 @@ func NewRegistry(dbPath string) (*Registry, error) {
 		"latest_response" TEXT DEFAULT '',
 		"questions" TEXT DEFAULT '[]',
 		"last_activity" TEXT DEFAULT '',
+		"result_id" INTEGER DEFAULT 0,
 		PRIMARY KEY (project, session_name)
 	);`
 
@@ -71,6 +73,9 @@ func NewRegistry(dbPath string) (*Registry, error) {
 		db.Close()
 		return nil, err
 	}
+
+	// Migration: Add result_id column if it doesn't exist (for existing databases)
+	db.Exec(`ALTER TABLE sessions ADD COLUMN result_id INTEGER DEFAULT 0`)
 
 	return &Registry{db: db}, nil
 }
@@ -100,10 +105,10 @@ func (r *Registry) Get(project, sessionName string) (*SessionData, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	row := r.db.QueryRow("SELECT project, session_name, id, working_dir, last_agent, is_agent_locked, state, latest_response, questions, last_activity FROM sessions WHERE project = ? AND session_name = ?", project, sessionName)
+	row := r.db.QueryRow("SELECT project, session_name, id, working_dir, last_agent, is_agent_locked, state, latest_response, questions, last_activity, result_id FROM sessions WHERE project = ? AND session_name = ?", project, sessionName)
 
 	var session SessionData
-	err := row.Scan(&session.Project, &session.SessionName, &session.ID, &session.WorkingDir, &session.LastAgent, &session.IsAgentLocked, &session.State, &session.LatestResponse, &session.Questions, &session.LastActivity)
+	err := row.Scan(&session.Project, &session.SessionName, &session.ID, &session.WorkingDir, &session.LastAgent, &session.IsAgentLocked, &session.State, &session.LatestResponse, &session.Questions, &session.LastActivity, &session.ResultID)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
 	}
@@ -118,7 +123,7 @@ func (r *Registry) List() ([]SessionData, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rows, err := r.db.Query("SELECT project, session_name, id, working_dir, last_agent, is_agent_locked, state, latest_response, questions, last_activity FROM sessions ORDER BY project, session_name")
+	rows, err := r.db.Query("SELECT project, session_name, id, working_dir, last_agent, is_agent_locked, state, latest_response, questions, last_activity, result_id FROM sessions ORDER BY project, session_name")
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +132,7 @@ func (r *Registry) List() ([]SessionData, error) {
 	var sessions []SessionData
 	for rows.Next() {
 		var s SessionData
-		if err := rows.Scan(&s.Project, &s.SessionName, &s.ID, &s.WorkingDir, &s.LastAgent, &s.IsAgentLocked, &s.State, &s.LatestResponse, &s.Questions, &s.LastActivity); err != nil {
+		if err := rows.Scan(&s.Project, &s.SessionName, &s.ID, &s.WorkingDir, &s.LastAgent, &s.IsAgentLocked, &s.State, &s.LatestResponse, &s.Questions, &s.LastActivity, &s.ResultID); err != nil {
 			return nil, err
 		}
 		sessions = append(sessions, s)
@@ -225,6 +230,28 @@ func (r *Registry) UpdateLastActivity(project, sessionName, timestamp string) er
 	return nil
 }
 
+// UpdateResultID updates the result_id for a session
+func (r *Registry) UpdateResultID(project, sessionName string, resultID uint64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	result, err := r.db.Exec("UPDATE sessions SET result_id = ? WHERE project = ? AND session_name = ?", resultID, project, sessionName)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 func (r *Registry) UpdateSessionData(project, sessionName string, session SessionData) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -235,8 +262,8 @@ func (r *Registry) UpdateSessionData(project, sessionName string, session Sessio
 	}
 
 	result, err := r.db.Exec(
-		"UPDATE sessions SET last_agent = ?, is_agent_locked = ?, state = ?, latest_response = ?, questions = ?, last_activity = ? WHERE project = ? AND session_name = ?",
-		session.LastAgent, lockedInt, session.State, session.LatestResponse, session.Questions, session.LastActivity, project, sessionName,
+		"UPDATE sessions SET last_agent = ?, is_agent_locked = ?, state = ?, latest_response = ?, questions = ?, last_activity = ?, result_id = ? WHERE project = ? AND session_name = ?",
+		session.LastAgent, lockedInt, session.State, session.LatestResponse, session.Questions, session.LastActivity, session.ResultID, project, sessionName,
 	)
 	if err != nil {
 		return err
@@ -264,10 +291,10 @@ func (r *Registry) FindByID(sessionID string) (*SessionData, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	row := r.db.QueryRow("SELECT project, session_name, id, working_dir, last_agent, is_agent_locked, state, latest_response, questions, last_activity FROM sessions WHERE id = ?", sessionID)
+	row := r.db.QueryRow("SELECT project, session_name, id, working_dir, last_agent, is_agent_locked, state, latest_response, questions, last_activity, result_id FROM sessions WHERE id = ?", sessionID)
 
 	var session SessionData
-	err := row.Scan(&session.Project, &session.SessionName, &session.ID, &session.WorkingDir, &session.LastAgent, &session.IsAgentLocked, &session.State, &session.LatestResponse, &session.Questions, &session.LastActivity)
+	err := row.Scan(&session.Project, &session.SessionName, &session.ID, &session.WorkingDir, &session.LastAgent, &session.IsAgentLocked, &session.State, &session.LatestResponse, &session.Questions, &session.LastActivity, &session.ResultID)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
 	}

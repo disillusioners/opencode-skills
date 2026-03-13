@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"opencode_skill/internal/config"
-	"opencode_skill/internal/manager"
 )
 
 type Client struct {
@@ -131,6 +130,22 @@ func (c *Client) SendRequest(action string, payload interface{}) (map[string]int
 
 func (c *Client) WaitForResult() {
 	start := time.Now()
+
+	// Get initial status
+	resp, err := c.SendRequest("GET_STATUS", nil)
+	if err != nil {
+		fmt.Printf("Error getting initial status: %v\n", err)
+		return
+	}
+
+	data, _ := resp["data"].(map[string]interface{})
+	currentResultID := getUint64(data, "result_id")
+	expectedResultID := currentResultID + 1
+
+	// Track last known state for timeout message
+	var lastState string
+	var lastIsWorkerBusy bool
+
 	if !c.Quiet {
 		fmt.Printf("Waiting for result (Timeout: %v)...\n", config.ClientTimeout)
 	}
@@ -150,7 +165,9 @@ func (c *Client) WaitForResult() {
 		}
 
 		data, _ := resp["data"].(map[string]interface{})
-		state, _ := data["state"].(string)
+		lastState, _ = data["state"].(string)
+		lastIsWorkerBusy, _ = data["is_worker_busy"].(bool)
+		resultID := getUint64(data, "result_id")
 
 		// Check questions
 		if questionsRaw, ok := data["questions"].([]interface{}); ok && len(questionsRaw) > 0 {
@@ -158,10 +175,10 @@ func (c *Client) WaitForResult() {
 			return
 		}
 
-		// Check result
+		// Only return if we have a NEW result
 		latestResp, _ := data["latest_response"].(map[string]interface{})
 
-		if state == string(manager.StateIdle) && latestResp != nil {
+		if resultID >= expectedResultID && latestResp != nil {
 			if errStr, ok := latestResp["error"].(string); ok && errStr != "" {
 				fmt.Printf("Error: %s\n", errStr)
 			} else if res, ok := latestResp["result"]; ok {
@@ -179,11 +196,15 @@ func (c *Client) WaitForResult() {
 		time.Sleep(config.PollInterval)
 	}
 
+	// Improved timeout message
 	if c.Quiet {
 		fmt.Println("Error: Timeout waiting for result")
+	} else if lastState == "IDLE" && !lastIsWorkerBusy {
+		fmt.Println("\n[TIMEOUT] No active task found.")
+		fmt.Println("Send a prompt first, then use /wait.")
 	} else {
-		fmt.Printf("\n[TIMEOUT] Message is taking longer than %v.\n", config.ClientTimeout)
-		fmt.Println("Daemon is still running in background.")
+		fmt.Printf("\n[TIMEOUT] Task is taking longer than %v.\n", config.ClientTimeout)
+		fmt.Println("The operation is still processing in the background.")
 		fmt.Printf("Run: `opencode_skill %s /wait` to check again.\n", c.fullSessionRef())
 	}
 }
@@ -263,6 +284,10 @@ func (c *Client) Status() {
 	latestResp, _ := data["latest_response"].(map[string]interface{})
 	if latestResp != nil {
 		fmt.Println("\n[LATEST RESPONSE]")
+		// Show result ID if present
+		if rid, ok := latestResp["result_id"].(float64); ok {
+			fmt.Printf("  Result ID: %d\n", uint64(rid))
+		}
 		formatted, _ := json.MarshalIndent(latestResp, "", "  ")
 		fmt.Println(string(formatted))
 	}
@@ -367,4 +392,12 @@ func getString(m map[string]interface{}, key string) string {
 		return v
 	}
 	return ""
+}
+
+// getUint64 extracts a uint64 from a map, handling JSON float64 conversion
+func getUint64(m map[string]interface{}, key string) uint64 {
+	if v, ok := m[key].(float64); ok {
+		return uint64(v)
+	}
+	return 0
 }

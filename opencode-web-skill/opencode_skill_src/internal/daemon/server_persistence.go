@@ -23,6 +23,7 @@ func (s *Server) setupStatePersistence(sm *manager.SessionManager) {
 		sessionData.LatestResponse = state.LatestResponse
 		sessionData.Questions = state.Questions
 		sessionData.LastActivity = state.LastActivity
+		sessionData.ResultID = state.ResultID
 
 		log.Printf("OnStateChange: calling UpdateSessionData")
 		if err := s.registry.UpdateSessionData(sessionData.Project, sessionData.SessionName, *sessionData); err != nil {
