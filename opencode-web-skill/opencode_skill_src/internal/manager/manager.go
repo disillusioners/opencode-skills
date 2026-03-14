@@ -147,13 +147,76 @@ func (sm *SessionManager) SetLastAgent(agent string) {
 func (sm *SessionManager) SetAgentLocked(locked bool) {
 	sm.mu.Lock()
 	sm.isAgentLocked = locked
-	if sm.OnStateChange != nil {
-		stateToSave := sm.saveStateLocked()
-		sm.mu.Unlock()
-		sm.OnStateChange(stateToSave)
-	} else {
-		sm.mu.Unlock()
+	sm.mu.Unlock()
+}
+
+// SyncStateWithOpenCode verifies the local state against OpenCode's real status.
+// If the local state is BUSY but OpenCode reports otherwise, it updates the state.
+// Returns the (potentially updated) snapshot.
+func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
+	sm.mu.RLock()
+	localState := sm.State
+	sm.mu.RUnlock()
+
+	// Only sync if we think we're busy
+	if localState != StateBusy {
+		return sm.GetSnapshot()
 	}
+
+	// Fetch real status from OpenCode
+	statusMap, err := sm.client.GetSessionStatus()
+	if err != nil {
+		log.Printf("SyncStateWithOpenCode: failed to get status from OpenCode: %v", err)
+		return sm.GetSnapshot()
+	}
+
+	realStatus, exists := statusMap[sm.SessionID]
+	if !exists {
+		log.Printf("SyncStateWithOpenCode: session %s not found in OpenCode status response", sm.SessionID)
+		// Session not found in OpenCode - it might have ended, reset to IDLE
+		sm.mu.Lock()
+		sm.State = StateIdle
+		sm.isWorkerBusy = false
+		sm.LatestResponse = map[string]interface{}{"error": "session not found in OpenCode"}
+		if sm.OnStateChange != nil {
+			stateToSave := sm.saveStateLocked()
+			sm.mu.Unlock()
+			sm.OnStateChange(stateToSave)
+		} else {
+			sm.mu.Unlock()
+		}
+		return sm.GetSnapshot()
+	}
+
+	// Check if real status differs from local state
+	if realStatus.Type == "idle" {
+		log.Printf("SyncStateWithOpenCode: state mismatch! Local=%s, OpenCode=%s. Updating local state.", localState, realStatus.Type)
+
+		// Fetch messages to get the last one as LatestResponse
+		var lastMessage interface{}
+		messages, err := sm.client.GetSessionMessages(sm.SessionID)
+		if err != nil {
+			log.Printf("SyncStateWithOpenCode: failed to get messages: %v", err)
+		} else if len(messages) > 0 {
+			lastMessage = messages[len(messages)-1]
+		}
+
+		sm.mu.Lock()
+		sm.State = StateIdle
+		sm.isWorkerBusy = false
+		if lastMessage != nil {
+			sm.LatestResponse = map[string]interface{}{"result": lastMessage}
+		}
+		if sm.OnStateChange != nil {
+			stateToSave := sm.saveStateLocked()
+			sm.mu.Unlock()
+			sm.OnStateChange(stateToSave)
+		} else {
+			sm.mu.Unlock()
+		}
+	}
+
+	return sm.GetSnapshot()
 }
 
 func (sm *SessionManager) Start() {

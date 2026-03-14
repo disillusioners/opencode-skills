@@ -202,7 +202,9 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	case "GET_STATUS":
 		if sm, ok := s.sessions[req.SessionID]; ok {
-			response = map[string]interface{}{"status": "ok", "data": sm.GetSnapshot()}
+			// Sync with OpenCode to ensure state is accurate when busy
+			snapshot := sm.SyncStateWithOpenCode()
+			response = map[string]interface{}{"status": "ok", "data": snapshot}
 		} else {
 			response = map[string]interface{}{"status": "error", "message": "Session not found"}
 		}

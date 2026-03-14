@@ -59,3 +59,8 @@ type Option struct {
 	Label       string `json:"label"`
 	Description string `json:"description,omitempty"`
 }
+
+// SessionStatus represents the status of a session from OpenCode API
+type SessionStatus struct {
+	Type string `json:"type"` // "busy", "idle", etc.
+}
