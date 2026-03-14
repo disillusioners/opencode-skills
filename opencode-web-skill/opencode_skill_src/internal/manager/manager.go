@@ -202,6 +202,13 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 		}
 
 		sm.mu.Lock()
+		// Re-check isWorkerBusy - if false, worker already finished and updated state
+		// Don't overwrite in that case to avoid race condition
+		if !sm.isWorkerBusy {
+			log.Printf("SyncStateWithOpenCode: worker already finished, skipping state update")
+			sm.mu.Unlock()
+			return sm.GetSnapshot()
+		}
 		sm.State = StateIdle
 		sm.isWorkerBusy = false
 		if lastMessage != nil {
