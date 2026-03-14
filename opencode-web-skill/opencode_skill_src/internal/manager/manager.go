@@ -158,6 +158,27 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 	localState := sm.State
 	sm.mu.RUnlock()
 
+	// If IDLE and no latest_response, fetch the last message
+	if localState == StateIdle {
+		sm.mu.RLock()
+		latestResp := sm.LatestResponse
+		sm.mu.RUnlock()
+
+		if latestResp == nil {
+			log.Printf("SyncStateWithOpenCode: IDLE with no latest_response, fetching messages")
+			messages, err := sm.client.GetSessionMessages(sm.SessionID)
+			if err != nil {
+				log.Printf("SyncStateWithOpenCode: failed to get messages: %v", err)
+			} else if len(messages) > 0 {
+				lastMessage := messages[len(messages)-1]
+				sm.mu.Lock()
+				sm.LatestResponse = map[string]interface{}{"result": lastMessage}
+				sm.mu.Unlock()
+			}
+		}
+		return sm.GetSnapshot()
+	}
+
 	// Only sync if we think we're busy
 	if localState != StateBusy {
 		return sm.GetSnapshot()
