@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -33,6 +34,7 @@ func setupLogging() error {
 
 type Server struct {
 	sessions map[string]*manager.SessionManager
+	mu       sync.RWMutex // Protects sessions map
 	listener net.Listener
 	registry *Registry
 	port     int
@@ -96,7 +98,9 @@ func (s *Server) Start() error {
 			sm := manager.NewSessionManager(session.ID, session.WorkingDir, persistedState)
 			s.setupStatePersistence(sm)
 			sm.Start()
+			s.mu.Lock()
 			s.sessions[session.ID] = sm
+			s.mu.Unlock()
 			log.Printf("Recovered session: %s %s (ID: %s, Dir: %s, State: %s)", session.Project, session.SessionName, session.ID, session.WorkingDir, fullData.State)
 		}
 		log.Printf("Recovered %d session(s) from registry", len(sessions))
@@ -141,8 +145,15 @@ func (s *Server) Stop() {
 		s.listener.Close()
 	}
 
-	// Stop all managers
+	// Stop all managers - copy slice first to avoid holding lock during Stop()
+	s.mu.RLock()
+	managers := make([]*manager.SessionManager, 0, len(s.sessions))
 	for _, sm := range s.sessions {
+		managers = append(managers, sm)
+	}
+	s.mu.RUnlock()
+
+	for _, sm := range managers {
 		sm.Stop()
 	}
 
@@ -188,6 +199,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 			workingDir = config.ProjectRoot
 		}
 
+		s.mu.Lock()
 		if sm, exists := s.sessions[req.SessionID]; exists {
 			sm.UpdateWorkingDir(workingDir)
 			log.Printf("Updated working dir for session %s to %s", req.SessionID, workingDir)
@@ -198,16 +210,20 @@ func (s *Server) handleConnection(conn net.Conn) {
 			s.sessions[req.SessionID] = sm
 			log.Printf("Started manager for session %s with dir %s", req.SessionID, workingDir)
 		}
+		s.mu.Unlock()
 		response = map[string]interface{}{"status": "ok", "message": "Session managed"}
 
 	case "GET_STATUS":
-		if sm, ok := s.sessions[req.SessionID]; ok {
+		s.mu.RLock()
+		sm, ok := s.sessions[req.SessionID]
+		if ok {
 			// Sync with OpenCode to ensure state is accurate when busy
 			snapshot := sm.SyncStateWithOpenCode()
 			response = map[string]interface{}{"status": "ok", "data": snapshot}
 		} else {
 			response = map[string]interface{}{"status": "error", "message": "Session not found"}
 		}
+		s.mu.RUnlock()
 
 	case "INIT_SESSION":
 		project, _ := req.Payload["project"].(string)
@@ -274,9 +290,11 @@ func (s *Server) handleConnection(conn net.Conn) {
 		}
 
 		// Reset local manager state
+		s.mu.RLock()
 		if sm, exists := s.sessions[session.ID]; exists {
 			sm.AbortTask()
 		}
+		s.mu.RUnlock()
 
 		log.Printf("Aborted tasks for session %s/%s", project, sessionName)
 		if abortErr != nil {
@@ -310,7 +328,10 @@ func (s *Server) handleConnection(conn net.Conn) {
 		response = map[string]interface{}{"status": "ok", "session": session}
 
 	case "PROMPT", "COMMAND", "ANSWER", "FIX":
-		if sm, ok := s.sessions[req.SessionID]; ok {
+		s.mu.RLock()
+		sm, ok := s.sessions[req.SessionID]
+		s.mu.RUnlock()
+		if ok {
 			log.Printf("Found session %s for action %s", req.SessionID, req.Action)
 			// Extract text content for special handling regarding busy state and agent locking
 			targetText := ""

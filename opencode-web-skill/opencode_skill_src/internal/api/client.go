@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -44,6 +45,10 @@ func (c *Client) CreateSession(title string) (string, error) {
 }
 
 func (c *Client) doRequest(method, url string, payload interface{}) ([]byte, error) {
+	return c.doRequestWithContext(context.Background(), method, url, payload)
+}
+
+func (c *Client) doRequestWithContext(ctx context.Context, method, url string, payload interface{}) ([]byte, error) {
 	var bodyReader io.Reader
 	if payload != nil {
 		bodyBytes, err := json.Marshal(payload)
@@ -53,7 +58,7 @@ func (c *Client) doRequest(method, url string, payload interface{}) ([]byte, err
 		bodyReader = bytes.NewBuffer(bodyBytes)
 	}
 
-	req, err := http.NewRequest(method, url, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
 	if err != nil {
 		return nil, err
 	}
