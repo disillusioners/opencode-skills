@@ -158,19 +158,28 @@ func (c *Client) WaitForResult() {
 			return
 		}
 
-		// Check result
+		// Check result - return immediately if session is IDLE
 		latestResp, _ := data["latest_response"].(map[string]interface{})
 
-		if state == string(manager.StateIdle) && latestResp != nil {
-			if errStr, ok := latestResp["error"].(string); ok && errStr != "" {
-				fmt.Printf("Error: %s\n", errStr)
-			} else if res, ok := latestResp["result"]; ok {
-				formatted, _ := json.MarshalIndent(res, "", "  ")
+		if state == string(manager.StateIdle) {
+			if latestResp != nil {
+				if errStr, ok := latestResp["error"].(string); ok && errStr != "" {
+					fmt.Printf("Error: %s\n", errStr)
+				} else if res, ok := latestResp["result"]; ok {
+					formatted, _ := json.MarshalIndent(res, "", "  ")
+					if c.Quiet {
+						fmt.Println(string(formatted))
+					} else {
+						fmt.Println("Response received:")
+						fmt.Println(string(formatted))
+					}
+				}
+			} else {
 				if c.Quiet {
-					fmt.Println(string(formatted))
+					fmt.Println("Session is idle with no result available")
 				} else {
-					fmt.Println("Response received:")
-					fmt.Println(string(formatted))
+					fmt.Println("Session completed but no result was captured.")
+					fmt.Println("Run `/status` for more details.")
 				}
 			}
 			return

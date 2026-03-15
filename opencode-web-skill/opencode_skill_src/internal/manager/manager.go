@@ -158,7 +158,9 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 	localState := sm.State
 	sm.mu.RUnlock()
 
-	// If IDLE and no latest_response, fetch the last message
+	// If IDLE with no latest_response, fetch the last message.
+	// This can happen after daemon restart or in edge cases where
+	// the response wasn't captured. We persist it to avoid re-fetching.
 	if localState == StateIdle {
 		sm.mu.RLock()
 		latestResp := sm.LatestResponse
@@ -173,7 +175,14 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 				lastMessage := messages[len(messages)-1]
 				sm.mu.Lock()
 				sm.LatestResponse = map[string]interface{}{"result": lastMessage}
-				sm.mu.Unlock()
+				if sm.OnStateChange != nil {
+					stateToSave := sm.saveStateLocked()
+					sm.mu.Unlock()
+					sm.OnStateChange(stateToSave)
+				} else {
+					sm.mu.Unlock()
+				}
+				return sm.GetSnapshot()
 			}
 		}
 		return sm.GetSnapshot()
