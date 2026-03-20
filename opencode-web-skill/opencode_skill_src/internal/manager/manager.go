@@ -220,16 +220,37 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 
 	// Check if real status differs from local state
 	if realStatus.Type == "idle" {
-		log.Printf("SyncStateWithOpenCode: state mismatch! Local=%s, OpenCode=%s. Updating local state.", localState, realStatus.Type)
-
 		// Fetch messages to get the last one as LatestResponse
 		var lastMessage interface{}
+		var messageComplete bool
 		messages, err := sm.client.GetSessionMessages(sm.SessionID)
 		if err != nil {
 			log.Printf("SyncStateWithOpenCode: failed to get messages: %v", err)
 		} else if len(messages) > 0 {
 			lastMessage = messages[len(messages)-1]
+			// Validate message is complete by checking info.finish == "stop"
+			if msgMap, ok := lastMessage.(map[string]interface{}); ok {
+				if info, ok := msgMap["info"].(map[string]interface{}); ok {
+					if finish, ok := info["finish"].(string); ok && finish == "stop" {
+						messageComplete = true
+					}
+				}
+			}
 		}
+
+		// If we couldn't get the response or it's not complete, keep the session BUSY
+		// so /wait will retry. Don't mark as IDLE with nil LatestResponse or incomplete
+		// message - that causes "no result captured" bug.
+		if lastMessage == nil || !messageComplete {
+			if err != nil {
+				log.Printf("SyncStateWithOpenCode: OpenCode reports idle but messages unavailable, keeping BUSY for retry")
+			} else {
+				log.Printf("SyncStateWithOpenCode: OpenCode reports idle but message incomplete (finish=%v), keeping BUSY", getMessageFinish(lastMessage))
+			}
+			return sm.GetSnapshot()
+		}
+
+		log.Printf("SyncStateWithOpenCode: state mismatch! Local=%s, OpenCode=%s. Updating local state.", localState, realStatus.Type)
 
 		sm.mu.Lock()
 		// Re-check isWorkerBusy - if false, worker already finished and updated state
@@ -254,6 +275,18 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 	}
 
 	return sm.GetSnapshot()
+}
+
+// getMessageFinish extracts the finish field from a message for logging purposes.
+func getMessageFinish(msg interface{}) string {
+	if msgMap, ok := msg.(map[string]interface{}); ok {
+		if info, ok := msgMap["info"].(map[string]interface{}); ok {
+			if finish, ok := info["finish"].(string); ok {
+				return finish
+			}
+		}
+	}
+	return "<unknown>"
 }
 
 func (sm *SessionManager) Start() {
