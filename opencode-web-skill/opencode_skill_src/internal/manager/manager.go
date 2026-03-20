@@ -531,7 +531,7 @@ func (sm *SessionManager) performFix() {
 
 	req := types.PromptRequest{
 		Agent: sm.params.LastAgent,
-		Model: types.ModelDetails{ProviderID: "zai-coding-plan", ModelID: "glm-5"},
+		Model: types.ModelDetails{ProviderID: "zai-coding-plan", ModelID: "smart"},
 		Parts: []types.Part{{Type: "text", Text: "continue"}},
 	}
 

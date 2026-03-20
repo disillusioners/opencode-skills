@@ -17,7 +17,7 @@ The `config` package serves as the **centralized configuration management module
 const (
     OpenCodeURL  = "http://127.0.0.1:4096"
     DefaultAgent = "orchestrator"
-    DefaultModel = "litellm/glm-5"
+    DefaultModel = "litellm/smart"
 )
 ```
 **Pattern Implementation**: Immutable compile-time constants with semantic grouping.
