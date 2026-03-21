@@ -90,7 +90,7 @@ The `manager` package implements a **session state machine orchestrator** respon
    - Provides type-safe message passing between components
 
 3. **`internal/config` Package**
-   - Configuration constants (`PollInterval`, `AutoFixTimeout`)
+   - Configuration constants (`PollInterval`)
    - Tunable parameters for behavior customization
 
 ### Consumer Modules (Downstream)

@@ -334,7 +334,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		}
 		response = map[string]interface{}{"status": "ok", "session": session}
 
-	case "PROMPT", "COMMAND", "ANSWER", "FIX":
+	case "PROMPT", "COMMAND", "ANSWER":
 		s.mu.RLock()
 		sm, ok := s.sessions[req.SessionID]
 		s.mu.RUnlock()

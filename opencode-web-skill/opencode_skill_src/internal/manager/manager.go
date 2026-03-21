@@ -44,11 +44,11 @@ type SessionManager struct {
 	// Worker tracking
 	workerDoneChan chan workerResult
 	isWorkerBusy   bool
-	taskStartTime  time.Time
-	lastActivity   time.Time
-	params         SessionParams
-	aborted        bool
-	OnStateChange  func(PersistedState)
+
+	lastActivity  time.Time
+	params        SessionParams
+	aborted       bool
+	OnStateChange func(PersistedState)
 }
 
 type SessionParams struct {
@@ -320,7 +320,6 @@ func (sm *SessionManager) loop() {
 
 		case <-ticker.C:
 			sm.pollQuestions()
-			sm.checkAutoFix()
 		}
 	}
 }
@@ -347,7 +346,6 @@ func (sm *SessionManager) handleRequest(req Request) {
 
 		sm.State = StateBusy
 		sm.LatestResponse = nil
-		sm.taskStartTime = time.Now()
 		sm.isWorkerBusy = true
 		sm.mu.Unlock()
 
@@ -373,7 +371,6 @@ func (sm *SessionManager) handleRequest(req Request) {
 				if len(sm.Questions) == 0 {
 					if sm.isWorkerBusy {
 						sm.State = StateBusy
-						sm.taskStartTime = time.Now() // Reset timeout
 					} else {
 						sm.State = StateIdle
 					}
@@ -382,8 +379,6 @@ func (sm *SessionManager) handleRequest(req Request) {
 			}
 		}
 
-	case "FIX":
-		sm.performFix()
 	}
 
 	if req.ResultChan != nil {
@@ -482,57 +477,4 @@ func (sm *SessionManager) pollQuestions() {
 			sm.State = StateIdle
 		}
 	}
-}
-
-func (sm *SessionManager) checkAutoFix() {
-	sm.mu.RLock()
-	if len(sm.Questions) > 0 {
-		sm.mu.RUnlock()
-		return
-	}
-
-	if sm.State == StateBusy && sm.isWorkerBusy {
-		if time.Since(sm.taskStartTime) > config.AutoFixTimeout {
-			sm.mu.RUnlock()
-			log.Printf("Session %s exceeded timeout. Triggering Auto-Fix.", sm.SessionID)
-			go func() {
-				sm.inputChan <- Request{Type: "FIX"}
-			}()
-			return
-		}
-	}
-	sm.mu.RUnlock()
-}
-
-func (sm *SessionManager) performFix() {
-	log.Printf("Performing FIX for session %s...", sm.SessionID)
-
-	sm.mu.RLock()
-	client := sm.client
-	sm.mu.RUnlock()
-
-	// 1. Abort
-	_ = client.AbortSession(sm.SessionID)
-
-	// Wait
-	time.Sleep(3 * time.Second)
-
-	sm.mu.Lock()
-	// 3. Send Continue
-	sm.isWorkerBusy = true
-	sm.State = StateBusy
-	sm.taskStartTime = time.Now()
-	sm.LatestResponse = nil
-	sm.mu.Unlock()
-
-	req := types.PromptRequest{
-		Agent: sm.params.LastAgent,
-		Model: types.ModelDetails{ProviderID: "zai-coding-plan", ModelID: "smart"},
-		Parts: []types.Part{{Type: "text", Text: "continue"}},
-	}
-
-	go func() {
-		res, err := client.SendPrompt(sm.SessionID, req)
-		sm.workerDoneChan <- workerResult{Result: res, Error: err}
-	}()
 }

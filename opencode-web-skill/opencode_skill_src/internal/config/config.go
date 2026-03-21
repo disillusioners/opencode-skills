@@ -23,9 +23,8 @@ const (
 
 // Timing
 const (
-	PollInterval   = 10 * time.Second
-	ClientTimeout  = 10 * time.Minute
-	AutoFixTimeout = 20 * time.Minute
+	PollInterval  = 10 * time.Second
+	ClientTimeout = 10 * time.Minute
 )
 
 // Paths

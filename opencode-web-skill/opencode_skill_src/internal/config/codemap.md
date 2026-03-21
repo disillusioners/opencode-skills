@@ -69,7 +69,7 @@ WrapperDir = filepath.Join(homeDir, ".opencode_skill")
 
 ### Data Flow Egress
 1. **Path Variables**: `ProjectRoot`, `WrapperDir`, `PidFile`, `SessionMapFile` → Consumed by file system operations
-2. **Timing Constants**: `PollInterval`, `ClientTimeout`, `AutoFixTimeout` → Used by timeout and interval logic
+2. **Timing Constants**: `PollInterval`, `ClientTimeout` → Used by timeout and interval logic
 3. **Network Constants**: `OpenCodeURL`, `DaemonHost`, `DaemonPort` → Used by network operations
 4. **Service Configuration**: `DefaultAgent`, `DefaultModel` → Used by API client initialization
 
@@ -101,7 +101,7 @@ Package Import → init() → getProjectRoot() → Directory Detection → Path 
 1. **`internal/api`**: Consumes `OpenCodeURL`, `DefaultAgent`, `DefaultModel`
 2. **`internal/client`**: Uses `DaemonHost`, `DaemonPort`, `ClientTimeout`
 3. **`internal/daemon`**: Accesses `DaemonHost`, `DaemonPort`, `PollInterval`, `PidFile`, `SessionMapFile`
-4. **`internal/manager`**: References `AutoFixTimeout`, `PollInterval`
+4. **`internal/manager`**: References `PollInterval`
 5. **`internal/types`**: May consume model and agent constants for type definitions
 
 ### External Integration Points
@@ -124,7 +124,7 @@ Package Import → init() → getProjectRoot() → Directory Detection → Path 
 
 ### Timing Configuration
 - **Purpose**: Request timeout and polling intervals
-- **Constants**: `PollInterval`, `ClientTimeout`, `AutoFixTimeout`
+- **Constants**: `PollInterval`, `ClientTimeout`
 - **Consumers**: Session manager, network clients
 
 ### Path Configuration
