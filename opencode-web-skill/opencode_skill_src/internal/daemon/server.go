@@ -33,26 +33,29 @@ func setupLogging() error {
 }
 
 type Server struct {
-	sessions map[string]*manager.SessionManager
-	mu       sync.RWMutex // Protects sessions map
-	listener net.Listener
-	registry *Registry
-	port     int
+	sessions  map[string]*manager.SessionManager
+	mu        sync.RWMutex // Protects sessions map
+	listener  net.Listener
+	registry  *Registry
+	port      int
+	startTime time.Time
 }
 
 func NewServer(registry *Registry) *Server {
 	return &Server{
-		sessions: make(map[string]*manager.SessionManager),
-		registry: registry,
-		port:     config.DaemonPort,
+		sessions:  make(map[string]*manager.SessionManager),
+		registry:  registry,
+		port:      config.DaemonPort,
+		startTime: time.Now(),
 	}
 }
 
 func NewServerWithPort(registry *Registry, port int) *Server {
 	return &Server{
-		sessions: make(map[string]*manager.SessionManager),
-		registry: registry,
-		port:     port,
+		sessions:  make(map[string]*manager.SessionManager),
+		registry:  registry,
+		port:      port,
+		startTime: time.Now(),
 	}
 }
 
@@ -191,7 +194,11 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	switch req.Action {
 	case "PING":
-		response = map[string]interface{}{"status": "ok", "message": "PONG"}
+		response = map[string]interface{}{
+			"status":     "ok",
+			"message":    "PONG",
+			"start_time": s.startTime.Format(time.RFC3339),
+		}
 
 	case "START_SESSION":
 		workingDir, _ := req.Payload["working_dir"].(string)

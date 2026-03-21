@@ -129,9 +129,28 @@ func (c *Client) SendRequest(action string, payload interface{}) (map[string]int
 	return resp, nil
 }
 
+func (c *Client) getDaemonInfo() (startTime string, err error) {
+	resp, err := c.SendRequest("PING", nil)
+	if err != nil {
+		return "", err
+	}
+	if status, ok := resp["status"].(string); !ok || status != "ok" {
+		return "", fmt.Errorf("%v", resp["message"])
+	}
+	if t, ok := resp["start_time"].(string); ok {
+		return t, nil
+	}
+	return "", nil
+}
+
 func (c *Client) WaitForResult() {
 	start := time.Now()
+
+	// Get daemon start time first
+	daemonStartTime, _ := c.getDaemonInfo()
+
 	if !c.Quiet {
+		fmt.Printf("[TOOL_INFO] daemon last start time: %s\n", daemonStartTime)
 		fmt.Printf("Waiting for result (Timeout: %v)...\n", config.ClientTimeout)
 	}
 
@@ -240,6 +259,10 @@ func (c *Client) printQuestions(questions []interface{}) {
 }
 
 func (c *Client) Status() {
+	// Get daemon start time first
+	daemonStartTime, _ := c.getDaemonInfo()
+	fmt.Printf("[TOOL_INFO] daemon last start time: %s\n", daemonStartTime)
+
 	resp, err := c.SendRequest("GET_STATUS", nil)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
