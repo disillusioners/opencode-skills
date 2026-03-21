@@ -150,50 +150,12 @@ func (sm *SessionManager) SetAgentLocked(locked bool) {
 	sm.mu.Unlock()
 }
 
-// SyncStateWithOpenCode verifies the local state against OpenCode's real status.
-// If the local state is BUSY but OpenCode reports otherwise, it updates the state.
-// Returns the (potentially updated) snapshot.
+// SyncStateWithOpenCode always verifies the local state against OpenCode's real status,
+// even when local state is IDLE. This prevents stale IDLE state from being reported
+// when OpenCode is actually busy with a task. Returns the (potentially updated) snapshot.
 func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
-	sm.mu.RLock()
-	localState := sm.State
-	sm.mu.RUnlock()
-
-	// If IDLE with no latest_response, fetch the last message.
-	// This can happen after daemon restart or in edge cases where
-	// the response wasn't captured. We persist it to avoid re-fetching.
-	if localState == StateIdle {
-		sm.mu.RLock()
-		latestResp := sm.LatestResponse
-		sm.mu.RUnlock()
-
-		if latestResp == nil {
-			log.Printf("SyncStateWithOpenCode: IDLE with no latest_response, fetching messages")
-			messages, err := sm.client.GetSessionMessages(sm.SessionID)
-			if err != nil {
-				log.Printf("SyncStateWithOpenCode: failed to get messages: %v", err)
-			} else if len(messages) > 0 {
-				lastMessage := messages[len(messages)-1]
-				sm.mu.Lock()
-				sm.LatestResponse = map[string]interface{}{"result": lastMessage}
-				if sm.OnStateChange != nil {
-					stateToSave := sm.saveStateLocked()
-					sm.mu.Unlock()
-					sm.OnStateChange(stateToSave)
-				} else {
-					sm.mu.Unlock()
-				}
-				return sm.GetSnapshot()
-			}
-		}
-		return sm.GetSnapshot()
-	}
-
-	// Only sync if we think we're busy
-	if localState != StateBusy {
-		return sm.GetSnapshot()
-	}
-
-	// Fetch real status from OpenCode
+	// Always sync with OpenCode for accurate status reporting, even when IDLE.
+	// This prevents stale IDLE state from being reported when OpenCode is busy.
 	statusMap, err := sm.client.GetSessionStatus()
 	if err != nil {
 		log.Printf("SyncStateWithOpenCode: failed to get status from OpenCode: %v", err)
@@ -202,25 +164,32 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 
 	realStatus, exists := statusMap[sm.SessionID]
 	if !exists {
-		log.Printf("SyncStateWithOpenCode: session %s not found in OpenCode status response", sm.SessionID)
-		// Session not found in OpenCode - it might have ended, reset to IDLE
+		// Session not found in OpenCode - keep IDLE with error response if needed
+		return sm.GetSnapshot()
+	}
+
+	// If OpenCode reports busy, update local state to match
+	if realStatus.Type == "busy" {
 		sm.mu.Lock()
-		sm.State = StateIdle
-		sm.isWorkerBusy = false
-		sm.LatestResponse = map[string]interface{}{"error": "session not found in OpenCode"}
-		if sm.OnStateChange != nil {
-			stateToSave := sm.saveStateLocked()
-			sm.mu.Unlock()
-			sm.OnStateChange(stateToSave)
+		if sm.State != StateBusy {
+			log.Printf("SyncStateWithOpenCode: local IDLE but OpenCode BUSY, updating state")
+			sm.State = StateBusy
+			sm.isWorkerBusy = true // Allow worker to handle the response
+			if sm.OnStateChange != nil {
+				stateToSave := sm.saveStateLocked()
+				sm.mu.Unlock()
+				sm.OnStateChange(stateToSave)
+			} else {
+				sm.mu.Unlock()
+			}
 		} else {
 			sm.mu.Unlock()
 		}
 		return sm.GetSnapshot()
 	}
 
-	// Check if real status differs from local state
+	// OpenCode reports idle - validate we have a complete last message
 	if realStatus.Type == "idle" {
-		// Fetch messages to get the last one as LatestResponse
 		var lastMessage interface{}
 		var messageComplete bool
 		messages, err := sm.client.GetSessionMessages(sm.SessionID)
@@ -238,39 +207,33 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 			}
 		}
 
-		// If we couldn't get the response or it's not complete, keep the session BUSY
-		// so /wait will retry. Don't mark as IDLE with nil LatestResponse or incomplete
-		// message - that causes "no result captured" bug.
-		if lastMessage == nil || !messageComplete {
-			if err != nil {
-				log.Printf("SyncStateWithOpenCode: OpenCode reports idle but messages unavailable, keeping BUSY for retry")
-			} else {
-				log.Printf("SyncStateWithOpenCode: OpenCode reports idle but message incomplete (finish=%v), keeping BUSY", getMessageFinish(lastMessage))
-			}
-			return sm.GetSnapshot()
-		}
-
-		log.Printf("SyncStateWithOpenCode: state mismatch! Local=%s, OpenCode=%s. Updating local state.", localState, realStatus.Type)
-
-		sm.mu.Lock()
-		// Re-check isWorkerBusy - if false, worker already finished and updated state
-		// Don't overwrite in that case to avoid race condition
-		if !sm.isWorkerBusy {
-			log.Printf("SyncStateWithOpenCode: worker already finished, skipping state update")
-			sm.mu.Unlock()
-			return sm.GetSnapshot()
-		}
-		sm.State = StateIdle
-		sm.isWorkerBusy = false
-		if lastMessage != nil {
+		// If we have no last message or it's incomplete, keep local state as IDLE
+		// but fetch the message for LatestResponse if available
+		if lastMessage != nil && messageComplete {
+			sm.mu.Lock()
 			sm.LatestResponse = map[string]interface{}{"result": lastMessage}
-		}
-		if sm.OnStateChange != nil {
-			stateToSave := sm.saveStateLocked()
-			sm.mu.Unlock()
-			sm.OnStateChange(stateToSave)
-		} else {
-			sm.mu.Unlock()
+			if sm.State != StateIdle {
+				sm.State = StateIdle
+				sm.isWorkerBusy = false
+			}
+			if sm.OnStateChange != nil {
+				stateToSave := sm.saveStateLocked()
+				sm.mu.Unlock()
+				sm.OnStateChange(stateToSave)
+			} else {
+				sm.mu.Unlock()
+			}
+		} else if latestResp := sm.LatestResponse; latestResp == nil && lastMessage != nil {
+			// Fetch LatestResponse if we don't have one yet
+			sm.mu.Lock()
+			sm.LatestResponse = map[string]interface{}{"result": lastMessage}
+			if sm.OnStateChange != nil {
+				stateToSave := sm.saveStateLocked()
+				sm.mu.Unlock()
+				sm.OnStateChange(stateToSave)
+			} else {
+				sm.mu.Unlock()
+			}
 		}
 	}
 
