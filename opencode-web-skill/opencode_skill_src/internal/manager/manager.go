@@ -451,6 +451,13 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 
 	// Copy client reference before releasing lock, then abort outside critical section
 	client := sm.client
+
+	// Save state while still holding the lock
+	var stateToSave PersistedState
+	if sm.OnStateChange != nil {
+		stateToSave = sm.saveStateLocked()
+	}
+
 	sm.mu.Unlock()
 
 	if needAbort {
@@ -460,12 +467,9 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 		}
 	}
 
+	// Call OnStateChange outside the lock to avoid potential deadlock
 	if sm.OnStateChange != nil {
-		stateToSave := sm.saveStateLocked()
-		sm.mu.Unlock()
 		sm.OnStateChange(stateToSave)
-	} else {
-		sm.mu.Unlock()
 	}
 }
 
