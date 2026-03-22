@@ -197,11 +197,18 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 			log.Printf("SyncStateWithOpenCode: failed to get messages: %v", err)
 		} else if len(messages) > 0 {
 			lastMessage = messages[len(messages)-1]
-			// Validate message is complete by checking info.finish == "stop"
+			// Validate message is complete by checking for step-finish part with reason=stop
 			if msgMap, ok := lastMessage.(map[string]interface{}); ok {
-				if info, ok := msgMap["info"].(map[string]interface{}); ok {
-					if finish, ok := info["finish"].(string); ok && finish == "stop" {
-						messageComplete = true
+				if parts, ok := msgMap["parts"].([]interface{}); ok {
+					for _, part := range parts {
+						if partMap, ok := part.(map[string]interface{}); ok {
+							if partType, ok := partMap["type"].(string); ok && partType == "step-finish" {
+								if reason, ok := partMap["reason"].(string); ok && reason == "stop" {
+									messageComplete = true
+									break
+								}
+							}
+						}
 					}
 				}
 			}
@@ -240,12 +247,18 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 	return sm.GetSnapshot()
 }
 
-// getMessageFinish extracts the finish field from a message for logging purposes.
+// getMessageFinish extracts the finish reason from a step-finish part.
 func getMessageFinish(msg interface{}) string {
 	if msgMap, ok := msg.(map[string]interface{}); ok {
-		if info, ok := msgMap["info"].(map[string]interface{}); ok {
-			if finish, ok := info["finish"].(string); ok {
-				return finish
+		if parts, ok := msgMap["parts"].([]interface{}); ok {
+			for _, part := range parts {
+				if partMap, ok := part.(map[string]interface{}); ok {
+					if partType, ok := partMap["type"].(string); ok && partType == "step-finish" {
+						if reason, ok := partMap["reason"].(string); ok {
+							return reason
+						}
+					}
+				}
 			}
 		}
 	}

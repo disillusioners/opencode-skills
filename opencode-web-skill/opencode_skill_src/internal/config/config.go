@@ -23,7 +23,7 @@ const (
 
 // Timing
 const (
-	PollInterval  = 10 * time.Second
+	PollInterval  = 30 * time.Second
 	ClientTimeout = 10 * time.Minute
 )
 

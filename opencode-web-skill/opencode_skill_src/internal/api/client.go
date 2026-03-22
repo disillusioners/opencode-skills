@@ -161,10 +161,10 @@ func (c *Client) GetSessionStatus() (map[string]SessionStatus, error) {
 	return result, nil
 }
 
-// GetSessionMessages fetches all messages for a session from OpenCode API
+// GetSessionMessages fetches messages for a session from OpenCode API
 // Returns an array of message objects
 func (c *Client) GetSessionMessages(sessionID string) ([]interface{}, error) {
-	u := fmt.Sprintf("%s/session/%s/messages", c.BaseURL, sessionID)
+	u := fmt.Sprintf("%s/session/%s/message", c.BaseURL, sessionID)
 	resp, err := c.doRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
