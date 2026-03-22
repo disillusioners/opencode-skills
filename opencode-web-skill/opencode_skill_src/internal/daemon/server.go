@@ -50,13 +50,36 @@ func NewServer(registry *Registry) *Server {
 	}
 }
 
-func NewServerWithPort(registry *Registry, port int) *Server {
-	return &Server{
-		sessions:  make(map[string]*manager.SessionManager),
-		registry:  registry,
-		port:      port,
-		startTime: time.Now(),
+// loadSessionIntoMemory loads a session from registry into daemon memory if not already present.
+func (s *Server) loadSessionIntoMemory(session *SessionData) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Double-check after acquiring write lock
+	if _, exists := s.sessions[session.ID]; exists {
+		return
 	}
+
+	fullData, err := s.registry.Get(session.Project, session.SessionName)
+	if err != nil {
+		log.Printf("Warning: failed to get full data for session %s/%s: %v", session.Project, session.SessionName, err)
+		fullData = session
+	}
+
+	persistedState := &manager.PersistedState{
+		LastAgent:      fullData.LastAgent,
+		IsAgentLocked:  fullData.IsAgentLocked,
+		State:          fullData.State,
+		LatestResponse: fullData.LatestResponse,
+		Questions:      fullData.Questions,
+		LastActivity:   fullData.LastActivity,
+	}
+
+	sm := manager.NewSessionManager(session.ID, session.WorkingDir, persistedState)
+	s.setupStatePersistence(sm)
+	sm.Start()
+	s.sessions[session.ID] = sm
+	log.Printf("Loaded session into memory: %s %s (ID: %s, Dir: %s, State: %s)", session.Project, session.SessionName, session.ID, session.WorkingDir, fullData.State)
 }
 
 func (s *Server) Start() error {
@@ -332,6 +355,16 @@ func (s *Server) handleConnection(conn net.Conn) {
 			response = map[string]interface{}{"status": "error", "message": "not found"}
 			break
 		}
+
+		// Ensure session is loaded into memory (load on demand if not already present)
+		s.mu.RLock()
+		_, exists := s.sessions[session.ID]
+		s.mu.RUnlock()
+
+		if !exists {
+			s.loadSessionIntoMemory(session)
+		}
+
 		response = map[string]interface{}{"status": "ok", "session": session}
 
 	case "PROMPT", "COMMAND", "ANSWER":
