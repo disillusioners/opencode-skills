@@ -197,7 +197,8 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 			log.Printf("SyncStateWithOpenCode: failed to get messages: %v", err)
 		} else if len(messages) > 0 {
 			lastMessage = messages[len(messages)-1]
-			// Validate message is complete by checking for step-finish part with reason=stop
+			// Guard: Check for step-finish with reason=stop to verify clean completion
+			// This protects against worker crashes, hangs, or abnormal termination
 			if msgMap, ok := lastMessage.(map[string]interface{}); ok {
 				if parts, ok := msgMap["parts"].([]interface{}); ok {
 					for _, part := range parts {
@@ -212,36 +213,30 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 					}
 				}
 			}
+			if !messageComplete {
+				log.Printf("SyncStateWithOpenCode: OpenCode idle but message lacks step-finish guard (reason=stop) - possible abnormal termination")
+			}
 		}
 
-		// If we have no last message or it's incomplete, keep local state as IDLE
-		// but fetch the message for LatestResponse if available
-		if lastMessage != nil && messageComplete {
-			sm.mu.Lock()
-			sm.LatestResponse = map[string]interface{}{"result": lastMessage}
-			if sm.State != StateIdle {
-				sm.State = StateIdle
-				sm.isWorkerBusy = false
-			}
-			if sm.OnStateChange != nil {
-				stateToSave := sm.saveStateLocked()
-				sm.mu.Unlock()
-				sm.OnStateChange(stateToSave)
-			} else {
-				sm.mu.Unlock()
-			}
-		} else if latestResp := sm.LatestResponse; latestResp == nil && lastMessage != nil {
-			// Fetch LatestResponse if we don't have one yet
-			sm.mu.Lock()
-			sm.LatestResponse = map[string]interface{}{"result": lastMessage}
-			if sm.OnStateChange != nil {
-				stateToSave := sm.saveStateLocked()
-				sm.mu.Unlock()
-				sm.OnStateChange(stateToSave)
-			} else {
-				sm.mu.Unlock()
-			}
+		// If OpenCode reports idle, set State=IDLE since it's no longer processing.
+		// The step-finish guard above is for logging/detection purposes only.
+		// Always return the message as LatestResponse regardless of clean finish.
+		shouldUpdateState := sm.State != StateIdle
+
+		sm.mu.Lock()
+		sm.LatestResponse = map[string]interface{}{"result": lastMessage}
+		if shouldUpdateState {
+			sm.State = StateIdle
+			sm.isWorkerBusy = false
 		}
+		if sm.OnStateChange != nil {
+			stateToSave := sm.saveStateLocked()
+			sm.mu.Unlock()
+			sm.OnStateChange(stateToSave)
+		} else {
+			sm.mu.Unlock()
+		}
+		_ = messageComplete // Suppress unused variable warning (kept for clarity)
 	}
 
 	return sm.GetSnapshot()
@@ -431,14 +426,20 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 		return
 	}
 
+	var needAbort bool
+
 	if res.Error != nil {
-		// Don't save timeout errors to state - they're not real errors
 		if netErr, ok := res.Error.(net.Error); ok && netErr.Timeout() {
-			sm.LatestResponse = nil
+			// HTTP timeout after 1 hour: terminate OpenCode session to clean up resources.
+			// Worker is done (terminated), so set State=IDLE with timeout error.
+			needAbort = true
+			sm.LatestResponse = map[string]interface{}{"error": "timeout after 1 hour"}
 		} else {
+			// Real error - set IDLE with error
 			sm.LatestResponse = map[string]interface{}{"error": res.Error.Error()}
 		}
 	} else {
+		// Success - set IDLE with result
 		sm.LatestResponse = map[string]interface{}{"result": res.Result}
 	}
 
@@ -446,6 +447,17 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 		sm.State = StateWaitingForInput
 	} else {
 		sm.State = StateIdle
+	}
+
+	// Copy client reference before releasing lock, then abort outside critical section
+	client := sm.client
+	sm.mu.Unlock()
+
+	if needAbort {
+		// Terminate OpenCode session to clean up resources
+		if err := client.AbortSession(sm.SessionID); err != nil {
+			log.Printf("Failed to abort session after timeout: %v", err)
+		}
 	}
 
 	if sm.OnStateChange != nil {

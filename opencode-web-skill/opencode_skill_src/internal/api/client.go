@@ -23,7 +23,7 @@ func NewClient(workingDir string) *Client {
 		BaseURL:    config.OpenCodeURL,
 		WorkingDir: workingDir,
 		httpClient: &http.Client{
-			Timeout: 10 * time.Minute,
+			Timeout: 1 * time.Hour,
 		},
 	}
 }
