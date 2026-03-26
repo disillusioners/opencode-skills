@@ -12,7 +12,7 @@ import (
 const (
 	OpenCodeURL  = "http://127.0.0.1:4096"
 	DefaultAgent = "orchestrator"
-	DefaultModel = "litellm/smart"
+	DefaultModel = "litellm/coding"
 )
 
 // Daemon Configuration

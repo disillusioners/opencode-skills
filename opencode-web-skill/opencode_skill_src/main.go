@@ -183,7 +183,7 @@ func main() {
 
 			// Validate format for model
 			if !strings.Contains(val, "/") {
-				fmt.Println("Error: Model must follow 'provider/model-name' format (e.g., litellm/smart)")
+				fmt.Println("Error: Model must follow 'provider/model-name' format (e.g., litellm/coding)")
 				os.Exit(1)
 			}
 
