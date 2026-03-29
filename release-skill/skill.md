@@ -181,4 +181,4 @@ opencode_skill myapp task-3 /wait &
 wait
 ```
 
-**Tips:** Limit to 3 sessions • Use for independent tasks only • Check status with `/status`
+**Tips:** Check status with `/status`
