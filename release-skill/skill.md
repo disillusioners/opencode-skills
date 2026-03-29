@@ -1,10 +1,4 @@
----
-name: opencode-skill
-description: "Control and operate oh-my-opencode-slim via web API interface using the Go-based opencode_skill."
-metadata: {"version": "1.2.0", "author": "Kha Nguyen", "license": "MIT", "github_url": "https://github.com/disillusioners/opencode-skills"}
----
-
-# OpenCode Web Controller (Go)
+# OpenCode_Skill
 
 This skill controls **Orchestrator** (oh-my-opencode-slim) via the web API using a robust **Daemon-Client architecture** implemented in Go. The Orchestrator handles everything end-to-end - planning, execution, and cleanup.
 
@@ -161,7 +155,7 @@ The Orchestrator handles planning, execution, and cleanup automatically.
 ## Parallel Sessions Workflow (Async).
 Recommended for Independent Tasks
 
-Run up to **3 sessions in parallel** to improve efficiency.
+Run up to **3 sessions in parallel** to improve development efficiency.
 
 > **⚠️ IMPORTANT: Only use for tasks with NO dependencies between them.** Parallel sessions must not rely on each other's output or modify the same files.
 
