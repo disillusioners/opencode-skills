@@ -157,3 +157,33 @@ opencode_skill <PROJECT> <SESSION_NAME> /answer "ESLint" "Jest"
 4.  **Wait for completion**: `opencode_skill myapp feature-A /wait`
 
 The Orchestrator handles planning, execution, and cleanup automatically.
+
+## Parallel Sessions Workflow (Async)
+
+Run up to **3 sessions in parallel** to reduce wait time.
+
+> **⚠️ IMPORTANT: Only use for tasks with NO dependencies between them.** Parallel sessions must not rely on each other's output or modify the same files.
+
+Use async mode (no `--sync`) with `&` and `wait`:
+
+```bash
+# Step 1: Initialize all sessions
+opencode_skill init-session myapp task-1 /path/to/project &
+opencode_skill init-session myapp task-2 /path/to/project &
+opencode_skill init-session myapp task-3 /path/to/project &
+wait
+
+# Step 2: Send requests (async)
+opencode_skill myapp task-1 "Add unit tests for auth" &
+opencode_skill myapp task-2 "Fix login button styling" &
+opencode_skill myapp task-3 "Update API docs" &
+wait
+
+# Step 3: Wait for all results
+opencode_skill myapp task-1 /wait &
+opencode_skill myapp task-2 /wait &
+opencode_skill myapp task-3 /wait &
+wait
+```
+
+**Tips:** Limit to 3 sessions • Use for independent tasks only • Check status with `/status`
