@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -16,6 +17,28 @@ import (
 	"opencode_skill/internal/daemon"
 	"opencode_skill/internal/types"
 )
+
+// resolveMessage handles @file or normal message args
+func resolveMessage(messageParts []string) (string, error) {
+	if len(messageParts) == 0 {
+		return "", errors.New("no message provided")
+	}
+
+	first := messageParts[0]
+
+	// @file syntax - read content from file
+	if strings.HasPrefix(first, "@") {
+		filename := first[1:] // Remove @
+		content, err := os.ReadFile(filename)
+		if err != nil {
+			return "", fmt.Errorf("failed to read file %s: %w", filename, err)
+		}
+		return strings.TrimSpace(string(content)), nil
+	}
+
+	// Default: join args with space (backward compatible)
+	return strings.Join(messageParts, " "), nil
+}
 
 func stopDaemon() bool {
 	// Find and kill process using the daemon port
@@ -333,7 +356,11 @@ func main() {
 
 	} else {
 		// Prompt
-		fullMessage := strings.Join(messageParts, " ")
+		fullMessage, err := resolveMessage(messageParts)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
 		payload := types.PromptRequest{
 			Agent: *agent,
 			Model: parseModel(*model),
@@ -379,6 +406,7 @@ func printUsage() {
 	fmt.Println("  opencode_skill restart")
 	fmt.Println("  opencode_skill init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> <MESSAGE>")
+	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> @file.txt  # Read message from file")
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> /wait")
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> /status")
 	fmt.Println("  opencode_skill config list")

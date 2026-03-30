@@ -47,6 +47,24 @@ opencode_skill [flags] <PROJECT> <SESSION_NAME> <MESSAGE>
     - `--sync`: Send prompt AND wait for result in a single command (blocking).
     - `--quiet`: Suppress informational messages (keeps errors visible).
 
+### Long Message Input via @file
+
+For long or complex prompts, use `@file` syntax to read from a file:
+
+**Path format:** `/tmp/opencode_skill/input_files/{project_name}/{session_name}_input.txt`
+
+**Example:**
+```bash
+# Create input file with the task
+cat > /tmp/opencode_skill/input_files/myapp/feature-login_input.txt << 'EOF'
+Implement user login with email and password.
+Include session management and logout functionality.
+EOF
+
+# Send using @file syntax
+opencode_skill --sync myapp feature-login @/tmp/opencode_skill/input_files/myapp/feature-login_input.txt
+```
+
 ### Sync Mode (`--sync`)
 The `--sync` flag combines sending a prompt and waiting for results into a single command:
 
