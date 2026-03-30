@@ -51,18 +51,18 @@ opencode_skill [flags] <PROJECT> <SESSION_NAME> <MESSAGE>
 
 For long or complex prompts, use `@file` syntax to read from a file:
 
-**Path format:** `/tmp/opencode_skill/input_files/{project_name}/{session_name}_input.txt`
+**Path format:** `/tmp/opencode_skill/prompt_files/{project_name}/{session_name}_prompt.txt`
 
 **Example:**
 ```bash
 # Create input file with the task
-cat > /tmp/opencode_skill/input_files/myapp/feature-login_input.txt << 'EOF'
+cat > /tmp/opencode_skill/prompt_files/myapp/feature-login_prompt.txt << 'EOF'
 Implement user login with email and password.
 Include session management and logout functionality.
 EOF
 
 # Send using @file syntax
-opencode_skill --sync myapp feature-login @/tmp/opencode_skill/input_files/myapp/feature-login_input.txt
+opencode_skill --sync myapp feature-login @/tmp/opencode_skill/prompt_files/myapp/feature-login_prompt.txt
 ```
 
 ### Sync Mode (`--sync`)
