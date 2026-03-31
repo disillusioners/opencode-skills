@@ -246,8 +246,13 @@ func main() {
 		if len(sessions) == 0 {
 			fmt.Println("No active sessions found.")
 		} else {
-			fmt.Println("Recent sessions:")
-			for _, s := range sessions {
+			maxSessions := 15
+			displaySessions := sessions
+			if len(sessions) > maxSessions {
+				displaySessions = sessions[:maxSessions]
+			}
+			fmt.Printf("Recent sessions (showing %d of %d):\n", len(displaySessions), len(sessions))
+			for _, s := range displaySessions {
 				fmt.Printf("  - %s %s (Dir: %s)\n", s.Project, s.SessionName, s.WorkingDir)
 			}
 		}
