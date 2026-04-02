@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,17 +16,28 @@ import (
 type Client struct {
 	BaseURL    string
 	WorkingDir string
+	APIUser    string
+	APIKey     string
 	httpClient *http.Client
 }
 
 func NewClient(workingDir string) *Client {
+	cfg := config.LoadConfig()
 	return &Client{
 		BaseURL:    config.OpenCodeURL,
 		WorkingDir: workingDir,
+		APIUser:    cfg.APIUser,
+		APIKey:     cfg.APIKey,
 		httpClient: &http.Client{
 			Timeout: 1 * time.Hour,
 		},
 	}
+}
+
+// base64Encode returns the base64 encoding of user:pass for Basic Auth
+func base64Encode(user, pass string) string {
+	auth := user + ":" + pass
+	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
 func (c *Client) CreateSession(title string) (string, error) {
@@ -67,6 +79,7 @@ func (c *Client) doRequestWithContext(ctx context.Context, method, url string, p
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "opencode-wrapper-go/1.0")
 	req.Header.Set("x-opencode-directory", c.WorkingDir)
+	req.Header.Set("Authorization", "Basic "+base64Encode(c.APIUser, c.APIKey))
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

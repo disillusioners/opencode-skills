@@ -10,9 +10,11 @@ import (
 
 // OpenCode Configuration
 const (
-	OpenCodeURL  = "http://127.0.0.1:4095"
-	DefaultAgent = "orchestrator"
-	DefaultModel = "litellm/coding"
+	OpenCodeURL    = "http://127.0.0.1:4095"
+	DefaultAgent   = "orchestrator"
+	DefaultModel   = "litellm/coding"
+	DefaultAPIUser = "opencode"
+	DefaultAPIKey  = "opencode"
 )
 
 // Daemon Configuration
@@ -82,6 +84,8 @@ func getProjectRoot() (string, error) {
 // UserConfig represents the user-configurable settings stored in config.json
 type UserConfig struct {
 	DefaultModel string `json:"defaultModel"`
+	APIUser      string `json:"apiUser"`
+	APIKey       string `json:"apiKey"`
 }
 
 var (
@@ -110,6 +114,8 @@ func LoadConfig() *UserConfig {
 
 	defaultCfg := &UserConfig{
 		DefaultModel: DefaultModel, // Fallback to hardcoded default
+		APIUser:      DefaultAPIUser,
+		APIKey:       DefaultAPIKey,
 	}
 
 	data, err := os.ReadFile(ConfigFile)
@@ -126,6 +132,12 @@ func LoadConfig() *UserConfig {
 
 	if cfg.DefaultModel == "" {
 		cfg.DefaultModel = DefaultModel // Ensure fallback if missing in JSON
+	}
+	if cfg.APIUser == "" {
+		cfg.APIUser = DefaultAPIUser
+	}
+	if cfg.APIKey == "" {
+		cfg.APIKey = DefaultAPIKey
 	}
 
 	cachedConfig = &cfg
@@ -153,4 +165,14 @@ func SaveConfig(cfg *UserConfig) error {
 // GetDefaultModel returns the configured default model, or the hardcoded default.
 func GetDefaultModel() string {
 	return LoadConfig().DefaultModel
+}
+
+// GetAPIUser returns the configured API username.
+func GetAPIUser() string {
+	return LoadConfig().APIUser
+}
+
+// GetAPIKey returns the configured API key.
+func GetAPIKey() string {
+	return LoadConfig().APIKey
 }

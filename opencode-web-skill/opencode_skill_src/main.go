@@ -178,6 +178,17 @@ func main() {
 			cfg := config.LoadConfig()
 			fmt.Println("Current Configuration:")
 			fmt.Printf("  Model: %s\n", cfg.DefaultModel)
+			fmt.Printf("  API User: %s\n", cfg.APIUser)
+			// Mask API key in output
+			if cfg.APIKey != "" {
+				masked := cfg.APIKey
+				if len(masked) > 4 {
+					masked = strings.Repeat("*", len(masked)-4) + cfg.APIKey[len(cfg.APIKey)-4:]
+				} else {
+					masked = strings.Repeat("*", len(masked))
+				}
+				fmt.Printf("  API Key: %s\n", masked)
+			}
 			return
 		}
 
@@ -189,33 +200,51 @@ func main() {
 
 		key := args[2]
 
-		if key != "model" {
-			fmt.Printf("Unknown config key: %s\n", key)
-			os.Exit(1)
-		}
-
 		if subcmd == "get" {
-			fmt.Println(config.GetDefaultModel())
+			switch key {
+			case "model":
+				fmt.Println(config.GetDefaultModel())
+			case "api-user":
+				fmt.Println(config.GetAPIUser())
+			case "api-key":
+				fmt.Println(config.GetAPIKey())
+			default:
+				fmt.Printf("Unknown config key: %s\n", key)
+				fmt.Println("Available keys: model, api-user, api-key")
+				os.Exit(1)
+			}
 			return
 		} else if subcmd == "set" {
 			if len(args) < 4 {
-				fmt.Println("Usage: opencode_skill config set model <value>")
+				fmt.Println("Usage: opencode_skill config set <key> <value>")
+				fmt.Println("Available keys: model, api-user, api-key")
 				os.Exit(1)
 			}
 			val := args[3]
 
-			// Validate format for model
-			if !strings.Contains(val, "/") {
-				fmt.Println("Error: Model must follow 'provider/model-name' format (e.g., litellm/coding)")
+			cfg := config.LoadConfig()
+			switch key {
+			case "model":
+				// Validate format for model
+				if !strings.Contains(val, "/") {
+					fmt.Println("Error: Model must follow 'provider/model-name' format (e.g., litellm/coding)")
+					os.Exit(1)
+				}
+				cfg.DefaultModel = val
+			case "api-user":
+				cfg.APIUser = val
+			case "api-key":
+				cfg.APIKey = val
+			default:
+				fmt.Printf("Unknown config key: %s\n", key)
+				fmt.Println("Available keys: model, api-user, api-key")
 				os.Exit(1)
 			}
 
-			cfg := config.LoadConfig()
-			cfg.DefaultModel = val
 			if err := config.SaveConfig(cfg); err != nil {
 				log.Fatalf("Failed to save config: %v", err)
 			}
-			fmt.Printf("Successfully set model to %s\n", val)
+			fmt.Printf("Successfully set %s to %s\n", key, val)
 			return
 		} else {
 			fmt.Printf("Unknown config command: %s\n", subcmd)
@@ -417,6 +446,8 @@ func printUsage() {
 	fmt.Println("  opencode_skill config list")
 	fmt.Println("  opencode_skill config get <key>")
 	fmt.Println("  opencode_skill config set <key> <value>")
+	fmt.Println("")
+	fmt.Println("Config keys: model, api-user, api-key")
 	fmt.Println("")
 	fmt.Println("Flags (must come before positional arguments):")
 	fmt.Println("  --sync    Send prompt and wait for result synchronously")
