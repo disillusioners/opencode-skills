@@ -122,7 +122,7 @@ func (m *testServer) start(t *testing.T) {
 func (m *testServer) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	buf := make([]byte, 4096)
+	buf := make([]byte, 4095)
 	n, err := conn.Read(buf)
 	if err != nil {
 		return

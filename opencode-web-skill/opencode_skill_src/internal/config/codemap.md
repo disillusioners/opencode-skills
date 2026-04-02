@@ -15,7 +15,7 @@ The `config` package serves as the **centralized configuration management module
 ```go
 // OpenCode Configuration
 const (
-    OpenCodeURL  = "http://127.0.0.1:4096"
+    OpenCodeURL  = "http://127.0.0.1:4095"
     DefaultAgent = "orchestrator"
     DefaultModel = "litellm/coding"
 )

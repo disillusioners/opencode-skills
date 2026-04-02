@@ -102,7 +102,7 @@ import time
 import json
 
 # Configuration
-BASE_URL = "http://127.0.0.1:4096"
+BASE_URL = "http://127.0.0.1:4095"
 PROJECT_DIR = "/Users/nguyenminhkha/All/Code/ns-projects/ns-kb"  # Update this
 
 HEADERS = {

@@ -192,7 +192,7 @@ if err := client.Connect(); err != nil {
 func (s *Server) handleConnection(conn net.Conn) {
     defer conn.Close()
     
-    buf := make([]byte, 4096)
+    buf := make([]byte, 4095)
     n, err := conn.Read(buf)
     if err != nil {
         return

@@ -40,7 +40,7 @@ A **Go-based daemon-client application** for controlling OpenCode AI agents (Sis
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          API Client (internal/api)                           │
-│  HTTP REST calls to OpenCode service (127.0.0.1:4096)                        │
+│  HTTP REST calls to OpenCode service (127.0.0.1:4095)                        │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
@@ -92,7 +92,7 @@ User Input → CLI Parser → TCP Client → Daemon Server → Session Manager �
 - `client` → consumed by `main.go` (CLI interface)
 
 ### External Systems
-- **OpenCode API**: `http://127.0.0.1:4096` (AI agent service)
+- **OpenCode API**: `http://127.0.0.1:4095` (AI agent service)
 - **SQLite**: `~/.opencode_skill/sessions.db` (session persistence)
 - **File System**: PID file, working directories
 - **TCP Network**: Port 44111 (daemon communication)
@@ -101,7 +101,7 @@ User Input → CLI Parser → TCP Client → Daemon Server → Session Manager �
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
-| `OpenCodeURL` | `http://127.0.0.1:4096` | AI service endpoint |
+| `OpenCodeURL` | `http://127.0.0.1:4095` | AI service endpoint |
 | `DaemonPort` | `44111` | TCP daemon port |
 | `DefaultAgent` | `sisyphus` | Default AI agent |
 | `PollInterval` | `2s` | State polling interval |
