@@ -79,7 +79,11 @@ func (c *Client) doRequestWithContext(ctx context.Context, method, url string, p
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "opencode-wrapper-go/1.0")
 	req.Header.Set("x-opencode-directory", c.WorkingDir)
-	req.Header.Set("Authorization", "Basic "+base64Encode(c.APIUser, c.APIKey))
+
+	// Only send Authorization header when credentials are configured (not defaults)
+	if c.APIUser != config.DefaultAPIUser || c.APIKey != config.DefaultAPIKey {
+		req.Header.Set("Authorization", "Basic "+base64Encode(c.APIUser, c.APIKey))
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
