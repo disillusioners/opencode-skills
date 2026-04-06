@@ -100,19 +100,20 @@ All message submissions return **immediately** with a confirmation:
 
 The daemon continues processing in the background. Use `/wait` to retrieve results when ready.
 
-### Retrieving Results with `/wait`
+### Retrieving Results
+
+**Single Session (`/wait`):**
 The `/wait` command retrieves results from the daemon:
 - **Blocking**: Waits up to 10 minutes for completion
 - **Non-blocking alternative**: Use `/status` to check if results are ready
 
-**To check for results:**
 ```bash
 opencode_skill <PROJECT> <SESSION_NAME> /wait
 ```
 
-### Available Commands
+**Multiple Sessions (`wait_any`):**
+For parallel sessions, use `wait_any` to retrieve results from the first completed session:
 
-**Wait for Any Session (for parallel work):**
 ```bash
 # Wait for first session to complete among multiple parallel sessions
 opencode_skill wait_any <PROJECT> <SESSION1> [<SESSION2> ...]
@@ -120,6 +121,9 @@ opencode_skill wait_any <PROJECT> <SESSION1> [<SESSION2> ...]
 # With --quiet for minimal output
 opencode_skill --quiet wait_any myapp task-1 task-2 task-3
 ```
+</sector>
+
+### Available Commands
 
 **Configuration Management:**
 
@@ -161,7 +165,7 @@ opencode_skill --sync --quiet myapp feature-A "Your request here"
 ```
 
 ### Interactive Questions
-If the Orchestrator asks a question, the wrapper will prompt you:
+If the Orchestrator asks a question, it will prompt you:
 ```text
 [?] Request ID: ...
     Which linter should I use?
@@ -207,25 +211,12 @@ opencode_skill myapp task-1 "Task 1" & opencode_skill myapp task-2 "Task 2" & op
 
 # Wait for any session to complete
 opencode_skill wait_any myapp task-1 task-2 task-3
-```
 
-**Using `wait_any`:**
-```bash
-opencode_skill wait_any <PROJECT> <SESSION1> [<SESSION2> ...]
+# When one session is complete (ex: task-1), you can start new one (ex: task-4)
+opencode_skill myapp task-4 "Task 4"
 
-# With --quiet for minimal output
-opencode_skill --quiet wait_any myapp task-1 task-2 task-3
-```
-
-The `wait_any` command polls all sessions and returns immediately when the first one completes, showing its result and status of remaining sessions.
-
-**Continuous parallel processing:**
-```bash
-while true; do
-    opencode_skill --quiet wait_any myapp task-1 task-2 task-3
-    # Process result, then check remaining: opencode_skill myapp task-X /status
-    # Break when all done, or send new work to completed sessions
-done
+# Use wait_any again to get the next completed session
+opencode_skill wait_any myapp task-2 task-3 task-4
 ```
 
 ## Error Handling
@@ -236,5 +227,3 @@ done
 # Resume a timed-out session
 opencode_skill <PROJECT> <SESSION_NAME> /resume
 ```
-
-## Tips: Limit to 3 sessions • Use for independent tasks only • Check status with `/status`
