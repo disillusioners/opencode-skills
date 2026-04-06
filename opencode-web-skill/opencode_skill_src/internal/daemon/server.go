@@ -256,6 +256,34 @@ func (s *Server) handleConnection(conn net.Conn) {
 		}
 		s.mu.RUnlock()
 
+	case "GET_MULTI_STATUS":
+		sessionIDsRaw, ok := req.Payload["session_ids"].([]interface{})
+		if !ok || len(sessionIDsRaw) == 0 {
+			response = map[string]interface{}{"status": "error", "message": "session_ids array is required"}
+			break
+		}
+
+		sessionIDs := make([]string, 0, len(sessionIDsRaw))
+		for _, id := range sessionIDsRaw {
+			if sid, ok := id.(string); ok {
+				sessionIDs = append(sessionIDs, sid)
+			}
+		}
+
+		s.mu.RLock()
+		results := make(map[string]interface{})
+		for _, sessionID := range sessionIDs {
+			sm, exists := s.sessions[sessionID]
+			if !exists {
+				results[sessionID] = map[string]interface{}{"error": "Session not found"}
+				continue
+			}
+			snapshot := sm.SyncStateWithOpenCode()
+			results[sessionID] = snapshot
+		}
+		s.mu.RUnlock()
+		response = map[string]interface{}{"status": "ok", "results": results}
+
 	case "INIT_SESSION":
 		project, _ := req.Payload["project"].(string)
 		sessionName, _ := req.Payload["session_name"].(string)
