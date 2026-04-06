@@ -191,77 +191,40 @@ opencode_skill <PROJECT> <SESSION_NAME> /answer "ESLint" "Jest"
 
 The Orchestrator handles planning, execution, and cleanup automatically.
 
-## Parallel Sessions Workflow (Async).
-Recommended for Independent Tasks
+## Parallel Sessions Workflow (Async)
 
-Run up to **3 sessions in parallel** to improve efficiency.
+Run up to **3 sessions in parallel** for independent tasks.
 
-> **⚠️ IMPORTANT: Only use for tasks with NO dependencies between them.** Parallel sessions must not rely on each other's output or modify the same files.
+> **⚠️ IMPORTANT: Only use for tasks with NO dependencies.** Parallel sessions must not rely on each other's output or modify the same files.
 
-Use async mode (no `--sync`) with `&` and `wait`:
-
+**Basic pattern:**
 ```bash
-# Step 1: Initialize all sessions
-opencode_skill init-session myapp task-1 /path/to/project &
-opencode_skill init-session myapp task-2 /path/to/project &
-opencode_skill init-session myapp task-3 /path/to/project &
-wait
+# Initialize sessions in parallel
+opencode_skill init-session myapp task-1 /path & opencode_skill init-session myapp task-2 /path & opencode_skill init-session myapp task-3 /path & wait
 
-# Step 2: Send requests (async)
-opencode_skill myapp task-1 "Add unit tests for auth" &
-opencode_skill myapp task-2 "Fix login button styling" &
-opencode_skill myapp task-3 "Update API docs" &
-wait
+# Send requests (async)
+opencode_skill myapp task-1 "Task 1" & opencode_skill myapp task-2 "Task 2" & opencode_skill myapp task-3 "Task 3" & wait
 
-# Step 3: Wait for any result using wait_any
+# Wait for any session to complete
 opencode_skill wait_any myapp task-1 task-2 task-3
 ```
 
-### Wait for Any Session (`wait_any`)
-
-Use `wait_any` when you want to wait for **at least one** session to complete among multiple parallel sessions. This is useful because bash's `wait` builtin only works with background jobs - you can't run multiple `/wait` commands in parallel.
-
+**Using `wait_any`:**
 ```bash
-# Syntax
 opencode_skill wait_any <PROJECT> <SESSION1> [<SESSION2> ...]
-
-# Example: Wait for any of 3 parallel sessions to complete
-opencode_skill wait_any myapp task-1 task-2 task-3
 
 # With --quiet for minimal output
 opencode_skill --quiet wait_any myapp task-1 task-2 task-3
 ```
 
-**Output includes:**
-- Which session completed first (with its response)
-- Status of all other sessions (ongoing or completed)
+The `wait_any` command polls all sessions and returns immediately when the first one completes, showing its result and status of remaining sessions.
 
-**Workflow for continuous parallel processing:**
+**Continuous parallel processing:**
 ```bash
-# Initialize all sessions
-opencode_skill init-session myapp task-1 /path/to/project &
-opencode_skill init-session myapp task-2 /path/to/project &
-opencode_skill init-session myapp task-3 /path/to/project &
-wait
-
-# Send all requests
-opencode_skill myapp task-1 "Task 1 description" &
-opencode_skill myapp task-2 "Task 2 description" &
-opencode_skill myapp task-3 "Task 3 description" &
-wait
-
-# Keep waiting for any to finish, then process and continue
 while true; do
-    # Use wait_any to get the next completed session
     opencode_skill --quiet wait_any myapp task-1 task-2 task-3
-    
-    # Check remaining status
-    opencode_skill myapp task-1 /status
-    opencode_skill myapp task-2 /status
-    opencode_skill myapp task-3 /status
-    
-    # If all done, break
-    # Otherwise, send new work to completed sessions and repeat
+    # Process result, then check remaining: opencode_skill myapp task-X /status
+    # Break when all done, or send new work to completed sessions
 done
 ```
 
