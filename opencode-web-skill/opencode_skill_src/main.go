@@ -176,7 +176,7 @@ func main() {
 		c.SetQuiet(*quiet)
 		completed, allStatuses, err := c.WaitAny(sessionPairs)
 
-		if err != nil && completed == nil {
+		if err != nil && len(completed) == 0 {
 			fmt.Printf("\n[TIMEOUT] No session completed within %v.\n", config.ClientTimeout)
 		}
 
