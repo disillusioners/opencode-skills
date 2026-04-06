@@ -162,6 +162,17 @@ func (c *Client) AbortSession(sessionID string) error {
 	return err
 }
 
+func (c *Client) ResumeSession(sessionID string) error {
+	u := fmt.Sprintf("%s/session/%s/message", c.BaseURL, sessionID)
+	payload := types.PromptRequest{
+		Agent: "orchestrator",
+		Model: types.ModelDetails{ProviderID: "litellm", ModelID: "coding"},
+		Parts: []types.Part{{Type: "text", Text: "resume"}},
+	}
+	_, err := c.postAndParse(u, payload)
+	return err
+}
+
 // GetSessionStatus fetches the status of all sessions from OpenCode API
 // Returns a map of sessionID -> SessionStatus
 func (c *Client) GetSessionStatus() (map[string]SessionStatus, error) {

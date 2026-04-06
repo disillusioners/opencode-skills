@@ -367,7 +367,6 @@ func (sm *SessionManager) handleRequest(req Request) {
 				log.Printf("Answer failed: %v", err)
 			} else {
 				sm.mu.Lock()
-				// Optimistically remove question
 				newQuestions := []api.Question{}
 				for _, q := range sm.Questions {
 					if q.ID != payload.RequestID {
@@ -385,6 +384,17 @@ func (sm *SessionManager) handleRequest(req Request) {
 				}
 				sm.mu.Unlock()
 			}
+		}
+
+	case "RESUME":
+		if err := sm.client.ResumeSession(sm.SessionID); err != nil {
+			log.Printf("Resume failed: %v", err)
+		} else {
+			sm.mu.Lock()
+			sm.State = StateBusy
+			sm.LatestResponse = nil
+			sm.isWorkerBusy = true
+			sm.mu.Unlock()
 		}
 
 	}

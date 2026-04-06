@@ -192,9 +192,11 @@ func (s *Server) Stop() {
 func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	reqBytes, err := io.ReadAll(conn)
+	var buf [131072]byte
+	n, err := conn.Read(buf[:])
 	if err != nil {
 		log.Printf("Connection read error: %v", err)
+		s.sendError(conn, "Invalid JSON")
 		return
 	}
 
@@ -204,7 +206,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		Payload   map[string]interface{} `json:"payload"`
 	}
 
-	if err := json.Unmarshal(reqBytes, &req); err != nil {
+	if err := json.Unmarshal(buf[:n], &req); err != nil {
 		log.Printf("JSON parse error: %v", err)
 		s.sendError(conn, "Invalid JSON")
 		return
@@ -366,7 +368,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 		response = map[string]interface{}{"status": "ok", "session": session}
 
-	case "PROMPT", "COMMAND", "ANSWER":
+	case "PROMPT", "COMMAND", "ANSWER", "RESUME":
 		s.mu.RLock()
 		sm, ok := s.sessions[req.SessionID]
 		s.mu.RUnlock()
@@ -449,7 +451,13 @@ func (s *Server) handleConnection(conn net.Conn) {
 			}
 
 			log.Printf("Submitting request for session %s", req.SessionID)
-			sm.SubmitRequest(manager.Request{Type: req.Action, Payload: internalPayload})
+
+			// RESUME has no payload conversion needed
+			if req.Action == "RESUME" {
+				sm.SubmitRequest(manager.Request{Type: req.Action, Payload: nil})
+			} else {
+				sm.SubmitRequest(manager.Request{Type: req.Action, Payload: internalPayload})
+			}
 			log.Printf("Request submitted for session %s", req.SessionID)
 			response = map[string]interface{}{"status": "ok", "message": "Request submitted"}
 

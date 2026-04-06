@@ -311,6 +311,24 @@ func main() {
 		c.WaitForResult()
 	} else if cmd == "/status" {
 		c.Status()
+	} else if cmd == "/resume" {
+		res, err := c.SendRequest("RESUME", nil)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+
+		if status, ok := res["status"].(string); ok && status == "error" {
+			fmt.Printf("Error: %v\n", res["message"])
+			return
+		}
+
+		fmt.Println("Session resumed.")
+		if *sync {
+			c.WaitForResult()
+		} else {
+			fmt.Printf("[SUBMITTED] Run: opencode_skill %s %s /wait\n", project, sessionName)
+		}
 	} else if cmd == "/answer" {
 		answers := messageParts[1:]
 		if len(answers) == 0 {
@@ -443,6 +461,7 @@ func printUsage() {
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> @file.txt  # Read message from file")
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> /wait")
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> /status")
+	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> /resume")
 	fmt.Println("  opencode_skill config list")
 	fmt.Println("  opencode_skill config get <key>")
 	fmt.Println("  opencode_skill config set <key> <value>")
