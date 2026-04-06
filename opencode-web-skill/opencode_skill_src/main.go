@@ -139,6 +139,49 @@ func main() {
 	case "restart":
 		restartDaemon()
 		return
+	case "wait_any":
+		// wait_any <PROJECT> <SESSION1> [<SESSION2> ...]
+		if len(args) < 3 {
+			fmt.Println("Usage: opencode_skill wait_any <PROJECT> <SESSION1> [<SESSION2> ...]")
+			fmt.Println("  Waits for any session to complete, reports which finished and which are still running.")
+			os.Exit(1)
+		}
+
+		project := args[1]
+		sessionNames := args[2:]
+
+		// Parse session pairs
+		sessionPairs := make([]client.SessionData, 0)
+		for _, sessionName := range sessionNames {
+			c := client.NewClient("")
+			sessionData, err := c.GetSession(project, sessionName)
+			if err != nil {
+				fmt.Printf("Session '%s %s' not found: %v\n", project, sessionName, err)
+				os.Exit(1)
+			}
+			sessionPairs = append(sessionPairs, *sessionData)
+		}
+
+		// Start all sessions in daemon
+		for i := range sessionPairs {
+			_, startErr := client.NewClientWithMeta(sessionPairs[i].ID, sessionPairs[i].Project, sessionPairs[i].SessionName).SendRequest("START_SESSION", map[string]string{"working_dir": sessionPairs[i].WorkingDir})
+			if startErr != nil {
+				fmt.Printf("Failed to start session '%s %s': %v\n", sessionPairs[i].Project, sessionPairs[i].SessionName, startErr)
+				os.Exit(1)
+			}
+		}
+
+		// Wait for any to complete
+		c := client.NewClient("")
+		c.SetQuiet(*quiet)
+		completed, allStatuses, err := c.WaitAny(sessionPairs)
+
+		if err != nil && completed == nil {
+			fmt.Printf("\n[TIMEOUT] No session completed within %v.\n", config.ClientTimeout)
+		}
+
+		client.PrintWaitAnyResults(completed, allStatuses, *quiet)
+		return
 	}
 
 	if command == "init-session" {
@@ -457,6 +500,7 @@ func printUsage() {
 	fmt.Println("  opencode_skill stop")
 	fmt.Println("  opencode_skill restart")
 	fmt.Println("  opencode_skill init-session <PROJECT> <SESSION_NAME> <WORKING_DIR>")
+	fmt.Println("  opencode_skill wait_any <PROJECT> <SESSION1> [<SESSION2> ...]")
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> <MESSAGE>")
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> @file.txt  # Read message from file")
 	fmt.Println("  opencode_skill [flags] <PROJECT> <SESSION_NAME> /wait")

@@ -1,7 +1,7 @@
 ---
 name: opencode-skill
 description: "Control and operate oh-my-opencode-slim via web API interface using the Go-based opencode_skill."
-metadata: {"version": "1.2.0", "author": "Kha Nguyen", "license": "MIT", "github_url": "https://github.com/disillusioners/opencode-skills"}
+metadata: {"version": "1.3.0", "author": "Kha Nguyen", "license": "MIT", "github_url": "https://github.com/disillusioners/opencode-skills"}
 ---
 
 # OpenCode Web Controller (Go)
@@ -112,6 +112,15 @@ opencode_skill <PROJECT> <SESSION_NAME> /wait
 
 ### Available Commands
 
+**Wait for Any Session (for parallel work):**
+```bash
+# Wait for first session to complete among multiple parallel sessions
+opencode_skill wait_any <PROJECT> <SESSION1> [<SESSION2> ...]
+
+# With --quiet for minimal output
+opencode_skill --quiet wait_any myapp task-1 task-2 task-3
+```
+
 **Configuration Management:**
 
 > **CRITICAL INSTRUCTION**: Do not change the configuration unless the user **explicitly** asks you to.
@@ -137,6 +146,9 @@ opencode_skill myapp feature-A /status
 
 # Wait for result (blocking, up to 10 min)
 opencode_skill myapp feature-A /wait
+
+# Wait for any session to complete (for parallel work)
+opencode_skill wait_any myapp task-1 task-2 task-3
 
 # Resume a timed-out session
 opencode_skill myapp feature-A /resume
@@ -201,11 +213,56 @@ opencode_skill myapp task-2 "Fix login button styling" &
 opencode_skill myapp task-3 "Update API docs" &
 wait
 
-# Step 3: Wait for all results
-opencode_skill myapp task-1 /wait &
-opencode_skill myapp task-2 /wait &
-opencode_skill myapp task-3 /wait &
+# Step 3: Wait for any result using wait_any
+opencode_skill wait_any myapp task-1 task-2 task-3
+```
+
+### Wait for Any Session (`wait_any`)
+
+Use `wait_any` when you want to wait for **at least one** session to complete among multiple parallel sessions. This is useful because bash's `wait` builtin only works with background jobs - you can't run multiple `/wait` commands in parallel.
+
+```bash
+# Syntax
+opencode_skill wait_any <PROJECT> <SESSION1> [<SESSION2> ...]
+
+# Example: Wait for any of 3 parallel sessions to complete
+opencode_skill wait_any myapp task-1 task-2 task-3
+
+# With --quiet for minimal output
+opencode_skill --quiet wait_any myapp task-1 task-2 task-3
+```
+
+**Output includes:**
+- Which session completed first (with its response)
+- Status of all other sessions (ongoing or completed)
+
+**Workflow for continuous parallel processing:**
+```bash
+# Initialize all sessions
+opencode_skill init-session myapp task-1 /path/to/project &
+opencode_skill init-session myapp task-2 /path/to/project &
+opencode_skill init-session myapp task-3 /path/to/project &
 wait
+
+# Send all requests
+opencode_skill myapp task-1 "Task 1 description" &
+opencode_skill myapp task-2 "Task 2 description" &
+opencode_skill myapp task-3 "Task 3 description" &
+wait
+
+# Keep waiting for any to finish, then process and continue
+while true; do
+    # Use wait_any to get the next completed session
+    opencode_skill --quiet wait_any myapp task-1 task-2 task-3
+    
+    # Check remaining status
+    opencode_skill myapp task-1 /status
+    opencode_skill myapp task-2 /status
+    opencode_skill myapp task-3 /status
+    
+    # If all done, break
+    # Otherwise, send new work to completed sessions and repeat
+done
 ```
 
 ## Error Handling

@@ -400,3 +400,237 @@ func getString(m map[string]interface{}, key string) string {
 	}
 	return ""
 }
+
+// SessionStatus holds the status of a single session for wait_any
+type SessionStatus struct {
+	Project     string
+	SessionName string
+	ID          string
+	State       string
+	Completed   bool
+	Response    interface{}
+	Questions   []interface{}
+}
+
+// WaitAny polls multiple sessions and returns when the first one completes.
+// Returns the completed session and statuses of all sessions.
+func (c *Client) WaitAny(sessionPairs []SessionData) (*SessionStatus, []SessionStatus, error) {
+	// Build a map of session ID -> index for quick lookup
+	sessionMap := make(map[string]int) // sessionID -> index in input array
+	for i, s := range sessionPairs {
+		sessionMap[s.ID] = i
+	}
+
+	start := time.Now()
+	daemonStartTime, _ := c.getDaemonInfo()
+
+	if !c.Quiet {
+		fmt.Printf("[TOOL_INFO] daemon last start time: %s\n", daemonStartTime)
+		fmt.Printf("Waiting for any session to complete (Timeout: %v)...\n", config.ClientTimeout)
+		fmt.Printf("Monitoring %d sessions: ", len(sessionPairs))
+		for i, s := range sessionPairs {
+			if i > 0 {
+				fmt.Print(", ")
+			}
+			fmt.Printf("%s/%s", s.Project, s.SessionName)
+		}
+		fmt.Println()
+	}
+
+	for time.Since(start) < config.ClientTimeout {
+		// Check each session's status
+		for _, session := range sessionPairs {
+			// Create a temp client for this session
+			tempClient := NewClientWithMeta(session.ID, session.Project, session.SessionName)
+			tempClient.SetQuiet(true)
+
+			resp, err := tempClient.SendRequest("GET_STATUS", nil)
+			if err != nil {
+				continue
+			}
+
+			if status, ok := resp["status"].(string); !ok || status != "ok" {
+				continue
+			}
+
+			data, _ := resp["data"].(map[string]interface{})
+			state, _ := data["state"].(string)
+
+			// Check if this session is complete (IDLE or has questions)
+			questions, _ := data["questions"].([]interface{})
+			latestResp, _ := data["latest_response"].(map[string]interface{})
+
+			if state == string(manager.StateIdle) || state == string(manager.StateWaitingForInput) || len(questions) > 0 {
+				// This session completed!
+				completed := &SessionStatus{
+					Project:     session.Project,
+					SessionName: session.SessionName,
+					ID:          session.ID,
+					State:       state,
+					Completed:   true,
+					Response:    latestResp,
+					Questions:   questions,
+				}
+
+				// Build all statuses
+				allStatuses := make([]SessionStatus, 0)
+				for _, s := range sessionPairs {
+					if s.ID == session.ID {
+						allStatuses = append(allStatuses, *completed)
+					} else {
+						// Get current status for ongoing sessions
+						ongoingClient := NewClientWithMeta(s.ID, s.Project, s.SessionName)
+						ongoingClient.SetQuiet(true)
+						ongoingResp, _ := ongoingClient.SendRequest("GET_STATUS", nil)
+						ongoingData, _ := ongoingResp["data"].(map[string]interface{})
+						ongoingState, _ := ongoingData["state"].(string)
+						ongoingQuestions, _ := ongoingData["questions"].([]interface{})
+						ongoingRespData, _ := ongoingData["latest_response"].(map[string]interface{})
+
+						allStatuses = append(allStatuses, SessionStatus{
+							Project:     s.Project,
+							SessionName: s.SessionName,
+							ID:          s.ID,
+							State:       ongoingState,
+							Completed:   ongoingState == string(manager.StateIdle) || ongoingState == string(manager.StateWaitingForInput) || len(ongoingQuestions) > 0,
+							Response:    ongoingRespData,
+							Questions:   ongoingQuestions,
+						})
+					}
+				}
+
+				return completed, allStatuses, nil
+			}
+		}
+
+		time.Sleep(config.PollInterval)
+	}
+
+	// Timeout - return nil for completed, but include all statuses
+	allStatuses := make([]SessionStatus, 0, len(sessionPairs))
+	for _, session := range sessionPairs {
+		tempClient := NewClientWithMeta(session.ID, session.Project, session.SessionName)
+		tempClient.SetQuiet(true)
+		resp, _ := tempClient.SendRequest("GET_STATUS", nil)
+		data, _ := resp["data"].(map[string]interface{})
+		state, _ := data["state"].(string)
+		questions, _ := data["questions"].([]interface{})
+		latestResp, _ := data["latest_response"].(map[string]interface{})
+
+		allStatuses = append(allStatuses, SessionStatus{
+			Project:     session.Project,
+			SessionName: session.SessionName,
+			ID:          session.ID,
+			State:       state,
+			Completed:   state == string(manager.StateIdle) || state == string(manager.StateWaitingForInput) || len(questions) > 0,
+			Response:    latestResp,
+			Questions:   questions,
+		})
+	}
+
+	return nil, allStatuses, fmt.Errorf("timeout waiting for any session")
+}
+
+// PrintWaitAnyResults prints the results of WaitAny in a formatted way
+func PrintWaitAnyResults(completed *SessionStatus, allStatuses []SessionStatus, quiet bool) {
+	if !quiet {
+		fmt.Println("\n" + strings.Repeat("=", 60))
+		fmt.Println("  WAIT_ANY RESULT")
+		fmt.Println(strings.Repeat("=", 60))
+	}
+
+	if completed != nil {
+		// Print completed session
+		if !quiet {
+			fmt.Printf("\n[COMPLETED] %s/%s\n", completed.Project, completed.SessionName)
+		}
+
+		// Check for questions
+		if len(completed.Questions) > 0 {
+			if !quiet {
+				fmt.Println("\n[QUESTIONS PENDING]")
+			}
+			// Print questions for this session
+			for _, qRaw := range completed.Questions {
+				q, _ := qRaw.(map[string]interface{})
+				if !quiet {
+					fmt.Printf("[?] Request ID: %v\n", q["id"])
+				} else {
+					fmt.Printf("[?] %s/%s - Request ID: %v\n", completed.Project, completed.SessionName, q["id"])
+				}
+
+				if subQs, ok := q["questions"].([]interface{}); ok {
+					for _, subQRaw := range subQs {
+						subQ, _ := subQRaw.(map[string]interface{})
+						if !quiet {
+							fmt.Printf("    %v\n", subQ["question"])
+						} else {
+							fmt.Printf("    Question: %v\n", subQ["question"])
+						}
+
+						if opts, ok := subQ["options"].([]interface{}); ok {
+							for _, optRaw := range opts {
+								opt, _ := optRaw.(map[string]interface{})
+								label := opt["label"]
+								desc := opt["description"]
+								if desc != nil && desc != "" {
+									if !quiet {
+										fmt.Printf("      - %v: %v\n", label, desc)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		} else if completed.Response != nil {
+			// Print response
+			if respMap, ok := completed.Response.(map[string]interface{}); ok {
+				if errStr, ok := respMap["error"].(string); ok && errStr != "" {
+					if !quiet {
+						fmt.Printf("Error: %s\n", errStr)
+					} else {
+						fmt.Printf("[ERROR] %s/%s: %s\n", completed.Project, completed.SessionName, errStr)
+					}
+				} else if res, ok := respMap["result"]; ok {
+					formatted, _ := json.MarshalIndent(res, "", "  ")
+					if quiet {
+						fmt.Printf("[COMPLETED] %s/%s:\n%s\n", completed.Project, completed.SessionName, string(formatted))
+					} else {
+						fmt.Println("Response:")
+						fmt.Println(string(formatted))
+					}
+				}
+			}
+		}
+	}
+
+	// Print ongoing sessions
+	ongoingCount := 0
+	for _, s := range allStatuses {
+		if !s.Completed {
+			ongoingCount++
+		}
+	}
+
+	if ongoingCount > 0 {
+		if !quiet {
+			fmt.Printf("\n[ONGOING] %d session(s) still running:\n", ongoingCount)
+		} else {
+			fmt.Println()
+		}
+		for _, s := range allStatuses {
+			if !s.Completed {
+				if !quiet {
+					fmt.Printf("  - %s/%s (state: %s)\n", s.Project, s.SessionName, s.State)
+				} else {
+					fmt.Printf("[ONGOING] %s/%s (state: %s)\n", s.Project, s.SessionName, s.State)
+				}
+			}
+		}
+	}
+
+	if !quiet {
+		fmt.Println(strings.Repeat("=", 60))
+	}
+}
