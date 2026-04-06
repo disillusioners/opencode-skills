@@ -117,9 +117,6 @@ For parallel sessions, use `wait_any` to retrieve results from the first complet
 ```bash
 # Wait for first session to complete among multiple parallel sessions
 opencode_skill wait_any <PROJECT> <SESSION1> [<SESSION2> ...]
-
-# With --quiet for minimal output
-opencode_skill --quiet wait_any myapp task-1 task-2 task-3
 ```
 </sector>
 
