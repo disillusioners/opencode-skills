@@ -205,4 +205,8 @@ opencode_skill myapp task-3 /wait &
 wait
 ```
 
-**Tips:** Limit to 3 sessions • Use for independent tasks only • Check status with `/status`
+## Error Handling
+
+**"The operation timed out"**: Resume the session once. If it times out again, split into smaller tasks.
+
+## Tips: Limit to 3 sessions • Use for independent tasks only • Check status with `/status`
