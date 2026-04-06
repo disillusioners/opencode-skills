@@ -415,12 +415,6 @@ type SessionStatus struct {
 // WaitAny polls multiple sessions and returns when the first one completes.
 // Returns the completed session and statuses of all sessions.
 func (c *Client) WaitAny(sessionPairs []SessionData) (*SessionStatus, []SessionStatus, error) {
-	// Build a map of session ID -> index for quick lookup
-	sessionMap := make(map[string]int) // sessionID -> index in input array
-	for i, s := range sessionPairs {
-		sessionMap[s.ID] = i
-	}
-
 	start := time.Now()
 	daemonStartTime, _ := c.getDaemonInfo()
 
@@ -438,9 +432,10 @@ func (c *Client) WaitAny(sessionPairs []SessionData) (*SessionStatus, []SessionS
 	}
 
 	for time.Since(start) < config.ClientTimeout {
-		// Check each session's status
+		// Collect status for ALL sessions in this iteration
+		allCurrentStatuses := make(map[string]*SessionStatus)
+
 		for _, session := range sessionPairs {
-			// Create a temp client for this session
 			tempClient := NewClientWithMeta(session.ID, session.Project, session.SessionName)
 			tempClient.SetQuiet(true)
 
@@ -455,51 +450,31 @@ func (c *Client) WaitAny(sessionPairs []SessionData) (*SessionStatus, []SessionS
 
 			data, _ := resp["data"].(map[string]interface{})
 			state, _ := data["state"].(string)
-
-			// Check if this session is complete (IDLE or has questions)
 			questions, _ := data["questions"].([]interface{})
 			latestResp, _ := data["latest_response"].(map[string]interface{})
 
-			if state == string(manager.StateIdle) || state == string(manager.StateWaitingForInput) || len(questions) > 0 {
-				// This session completed!
-				completed := &SessionStatus{
-					Project:     session.Project,
-					SessionName: session.SessionName,
-					ID:          session.ID,
-					State:       state,
-					Completed:   true,
-					Response:    latestResp,
-					Questions:   questions,
-				}
+			completed := state == string(manager.StateIdle) || state == string(manager.StateWaitingForInput) || len(questions) > 0
 
-				// Build all statuses
-				allStatuses := make([]SessionStatus, 0)
+			allCurrentStatuses[session.ID] = &SessionStatus{
+				Project:     session.Project,
+				SessionName: session.SessionName,
+				ID:          session.ID,
+				State:       state,
+				Completed:   completed,
+				Response:    latestResp,
+				Questions:   questions,
+			}
+		}
+
+		// Check if any session is completed
+		for _, session := range sessionPairs {
+			if status, ok := allCurrentStatuses[session.ID]; ok && status.Completed {
+				// Build allStatuses from collected statuses
+				allStatuses := make([]SessionStatus, 0, len(sessionPairs))
 				for _, s := range sessionPairs {
-					if s.ID == session.ID {
-						allStatuses = append(allStatuses, *completed)
-					} else {
-						// Get current status for ongoing sessions
-						ongoingClient := NewClientWithMeta(s.ID, s.Project, s.SessionName)
-						ongoingClient.SetQuiet(true)
-						ongoingResp, _ := ongoingClient.SendRequest("GET_STATUS", nil)
-						ongoingData, _ := ongoingResp["data"].(map[string]interface{})
-						ongoingState, _ := ongoingData["state"].(string)
-						ongoingQuestions, _ := ongoingData["questions"].([]interface{})
-						ongoingRespData, _ := ongoingData["latest_response"].(map[string]interface{})
-
-						allStatuses = append(allStatuses, SessionStatus{
-							Project:     s.Project,
-							SessionName: s.SessionName,
-							ID:          s.ID,
-							State:       ongoingState,
-							Completed:   ongoingState == string(manager.StateIdle) || ongoingState == string(manager.StateWaitingForInput) || len(ongoingQuestions) > 0,
-							Response:    ongoingRespData,
-							Questions:   ongoingQuestions,
-						})
-					}
+					allStatuses = append(allStatuses, *allCurrentStatuses[s.ID])
 				}
-
-				return completed, allStatuses, nil
+				return status, allStatuses, nil
 			}
 		}
 
