@@ -192,8 +192,7 @@ func (s *Server) Stop() {
 func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	buf := make([]byte, 4095)
-	n, err := conn.Read(buf)
+	reqBytes, err := io.ReadAll(conn)
 	if err != nil {
 		log.Printf("Connection read error: %v", err)
 		return
@@ -205,7 +204,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		Payload   map[string]interface{} `json:"payload"`
 	}
 
-	if err := json.Unmarshal(buf[:n], &req); err != nil {
+	if err := json.Unmarshal(reqBytes, &req); err != nil {
 		log.Printf("JSON parse error: %v", err)
 		s.sendError(conn, "Invalid JSON")
 		return
