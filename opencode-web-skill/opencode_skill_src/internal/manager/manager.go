@@ -155,7 +155,7 @@ func (sm *SessionManager) SetAgentLocked(locked bool) {
 //   - No messages: keep current state
 //   - step-finish with reason=waiting_for_input: WAITING_FOR_INPUT
 //   - step-finish with reason=stop: IDLE
-//   - Otherwise: BUSY (still processing)
+//   - Any other message (timeout, error, etc.): IDLE
 //
 // Returns the (potentially updated) snapshot.
 func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
@@ -181,7 +181,9 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 	case "stop":
 		newState = StateIdle
 	default:
-		newState = StateBusy
+		// No step-finish means OpenCode ended its turn (timeout, error, etc.)
+		// Treat as IDLE so user can resume or continue
+		newState = StateIdle
 	}
 
 	shouldUpdateState := sm.State != newState
