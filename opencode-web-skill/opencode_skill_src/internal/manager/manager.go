@@ -387,15 +387,14 @@ func (sm *SessionManager) handleRequest(req Request) {
 		}
 
 	case "RESUME":
-		if err := sm.client.ResumeSession(sm.SessionID); err != nil {
-			log.Printf("Resume failed: %v", err)
-		} else {
-			sm.mu.Lock()
-			sm.State = StateBusy
-			sm.LatestResponse = nil
-			sm.isWorkerBusy = true
-			sm.mu.Unlock()
-		}
+		sm.mu.Lock()
+		sm.State = StateBusy
+		sm.LatestResponse = nil
+		sm.isWorkerBusy = true
+		sm.mu.Unlock()
+
+		log.Printf("Starting worker for RESUME...")
+		go sm.runWorker(req)
 
 	}
 
@@ -408,16 +407,22 @@ func (sm *SessionManager) runWorker(req Request) {
 	var res interface{}
 	var err error
 
-	// Read client with lock if needed, but client itself is thread-safe (just struct with static fields)
-	// sm.client pointer exchange needs lock.
 	sm.mu.RLock()
 	client := sm.client
 	sm.mu.RUnlock()
 
-	if req.Type == "COMMAND" {
+	switch req.Type {
+	case "RESUME":
+		promptReq := types.PromptRequest{
+			Agent: "orchestrator",
+			Model: types.ModelDetails{ProviderID: "litellm", ModelID: "coding"},
+			Parts: []types.Part{{Type: "text", Text: "resume"}},
+		}
+		res, err = client.SendPrompt(sm.SessionID, promptReq)
+	case "COMMAND":
 		cmdReq, _ := req.Payload.(types.CommandRequest)
 		res, err = client.SendCommand(sm.SessionID, cmdReq)
-	} else {
+	default: // PROMPT
 		promptReq, _ := req.Payload.(types.PromptRequest)
 		res, err = client.SendPrompt(sm.SessionID, promptReq)
 	}
