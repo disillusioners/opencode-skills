@@ -197,7 +197,7 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 	shouldUpdateWorkerBusy := sm.isWorkerBusy && newState == StateIdle
 
 	sm.mu.Lock()
-	sm.LatestResponse = map[string]interface{}{"result": lastMessage}
+	sm.LatestResponse = map[string]interface{}{"result": stripMessageBloat(lastMessage)}
 	if shouldUpdateState {
 		sm.State = newState
 	}
@@ -245,6 +245,69 @@ func hasMessageError(msg interface{}) bool {
 		}
 	}
 	return false
+}
+
+// stripMessageBloat removes verbose fields from OpenCode message responses
+// that aren't useful for agents (IDs, tokens, snapshots, etc.)
+func stripMessageBloat(msg interface{}) interface{} {
+	msgMap, ok := msg.(map[string]interface{})
+	if !ok {
+		return msg
+	}
+
+	// Strip info bloat - keep only essential fields
+	if info, ok := msgMap["info"].(map[string]interface{}); ok {
+		strippedInfo := make(map[string]interface{})
+		if id, ok := info["id"].(string); ok {
+			strippedInfo["id"] = id
+		}
+		if finish, ok := info["finish"].(string); ok {
+			strippedInfo["finish"] = finish
+		}
+		if errorMsg, ok := info["error"]; ok {
+			strippedInfo["error"] = errorMsg
+		}
+		if timeMap, ok := info["time"].(map[string]interface{}); ok {
+			strippedTime := make(map[string]interface{})
+			if completed, ok := timeMap["completed"].(float64); ok {
+				strippedTime["completed"] = completed
+			}
+			if created, ok := timeMap["created"].(float64); ok {
+				strippedTime["created"] = created
+			}
+			if len(strippedTime) > 0 {
+				strippedInfo["time"] = strippedTime
+			}
+		}
+		if len(strippedInfo) > 0 {
+			msgMap["info"] = strippedInfo
+		}
+	}
+
+	// Strip parts bloat - keep type, text, and reason
+	if parts, ok := msgMap["parts"].([]interface{}); ok {
+		for i, partRaw := range parts {
+			if part, ok := partRaw.(map[string]interface{}); ok {
+				strippedPart := make(map[string]interface{})
+				if partType, ok := part["type"].(string); ok {
+					strippedPart["type"] = partType
+				}
+				if text, ok := part["text"].(string); ok {
+					strippedPart["text"] = text
+				}
+				if reason, ok := part["reason"].(string); ok {
+					strippedPart["reason"] = reason
+				}
+				// Keep error if present
+				if errorMsg, ok := part["error"]; ok {
+					strippedPart["error"] = errorMsg
+				}
+				parts[i] = strippedPart
+			}
+		}
+	}
+
+	return msgMap
 }
 
 func (sm *SessionManager) Start() {
@@ -442,7 +505,7 @@ func (sm *SessionManager) handleWorkerDone(res workerResult) {
 		}
 	} else {
 		// Success - set IDLE with result
-		sm.LatestResponse = map[string]interface{}{"result": res.Result}
+		sm.LatestResponse = map[string]interface{}{"result": stripMessageBloat(res.Result)}
 	}
 
 	if len(sm.Questions) > 0 {
