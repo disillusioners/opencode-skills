@@ -60,7 +60,4 @@ type Option struct {
 	Description string `json:"description,omitempty"`
 }
 
-// SessionStatus represents the status of a session from OpenCode API
-type SessionStatus struct {
-	Type string `json:"type"` // "busy", "idle", etc.
-}
+// SessionStatus removed - state is now determined from messages, not status API

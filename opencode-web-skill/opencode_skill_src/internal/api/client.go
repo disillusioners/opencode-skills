@@ -80,8 +80,8 @@ func (c *Client) doRequestWithContext(ctx context.Context, method, url string, p
 	req.Header.Set("User-Agent", "opencode-wrapper-go/1.0")
 	req.Header.Set("x-opencode-directory", c.WorkingDir)
 
-	// Only send Authorization header when credentials are configured (not defaults)
-	if c.APIUser != config.DefaultAPIUser || c.APIKey != config.DefaultAPIKey {
+	// Always send Basic Auth when credentials are configured
+	if c.APIUser != "" && c.APIKey != "" {
 		req.Header.Set("Authorization", "Basic "+base64Encode(c.APIUser, c.APIKey))
 	}
 
@@ -173,26 +173,10 @@ func (c *Client) ResumeSession(sessionID string) error {
 	return err
 }
 
-// GetSessionStatus fetches the status of all sessions from OpenCode API
-// Returns a map of sessionID -> SessionStatus
-func (c *Client) GetSessionStatus() (map[string]SessionStatus, error) {
-	u := fmt.Sprintf("%s/session/status", c.BaseURL)
-	resp, err := c.doRequest("GET", u, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]SessionStatus
-	if err := json.Unmarshal(resp, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse session status response: %w", err)
-	}
-	return result, nil
-}
-
 // GetSessionMessages fetches messages for a session from OpenCode API
-// Returns an array of message objects
+// Returns an array of message objects (sorted newest first, limited to 1)
 func (c *Client) GetSessionMessages(sessionID string) ([]interface{}, error) {
-	u := fmt.Sprintf("%s/session/%s/message", c.BaseURL, sessionID)
+	u := fmt.Sprintf("%s/session/%s/message?limit=1", c.BaseURL, sessionID)
 	resp, err := c.doRequest("GET", u, nil)
 	if err != nil {
 		return nil, err

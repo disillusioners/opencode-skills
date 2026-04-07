@@ -150,99 +150,65 @@ func (sm *SessionManager) SetAgentLocked(locked bool) {
 	sm.mu.Unlock()
 }
 
-// SyncStateWithOpenCode always verifies the local state against OpenCode's real status,
-// even when local state is IDLE. This prevents stale IDLE state from being reported
-// when OpenCode is actually busy with a task. Returns the (potentially updated) snapshot.
+// SyncStateWithOpenCode determines session state from the last message (step-finish reason).
+// This replaces the unreliable session status API with message-based state detection:
+//   - No messages: keep current state
+//   - step-finish with reason=waiting_for_input: WAITING_FOR_INPUT
+//   - step-finish with reason=stop: IDLE
+//   - Otherwise: BUSY (still processing)
+//
+// Returns the (potentially updated) snapshot.
 func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
-	// Always sync with OpenCode for accurate status reporting, even when IDLE.
-	// This prevents stale IDLE state from being reported when OpenCode is busy.
-	statusMap, err := sm.client.GetSessionStatus()
+	messages, err := sm.client.GetSessionMessages(sm.SessionID)
 	if err != nil {
-		log.Printf("SyncStateWithOpenCode: failed to get status from OpenCode: %v", err)
+		log.Printf("SyncStateWithOpenCode: failed to get messages from OpenCode: %v", err)
 		return sm.GetSnapshot()
 	}
 
-	realStatus, exists := statusMap[sm.SessionID]
-	if !exists {
-		// Session not found in OpenCode - keep IDLE with error response if needed
+	// No messages - keep current state
+	if len(messages) == 0 {
 		return sm.GetSnapshot()
 	}
 
-	// If OpenCode reports busy, update local state to match
-	if realStatus.Type == "busy" {
-		sm.mu.Lock()
-		if sm.State != StateBusy {
-			log.Printf("SyncStateWithOpenCode: local IDLE but OpenCode BUSY, updating state")
-			sm.State = StateBusy
-			sm.isWorkerBusy = true // Allow worker to handle the response
-			if sm.OnStateChange != nil {
-				stateToSave := sm.saveStateLocked()
-				sm.mu.Unlock()
-				sm.OnStateChange(stateToSave)
-			} else {
-				sm.mu.Unlock()
-			}
-		} else {
-			sm.mu.Unlock()
-		}
-		return sm.GetSnapshot()
+	lastMessage := messages[0] // Already sorted newest first due to limit=1
+	finishReason := getMessageFinish(lastMessage)
+
+	// Determine new state from finish reason
+	var newState State
+	switch finishReason {
+	case "waiting_for_input":
+		newState = StateWaitingForInput
+	case "stop":
+		newState = StateIdle
+	default:
+		newState = StateBusy
 	}
 
-	// OpenCode reports idle - validate we have a complete last message
-	if realStatus.Type == "idle" {
-		var lastMessage interface{}
-		var messageComplete bool
-		messages, err := sm.client.GetSessionMessages(sm.SessionID)
-		if err != nil {
-			log.Printf("SyncStateWithOpenCode: failed to get messages: %v", err)
-		} else if len(messages) > 0 {
-			lastMessage = messages[len(messages)-1]
-			// Guard: Check for step-finish with reason=stop to verify clean completion
-			// This protects against worker crashes, hangs, or abnormal termination
-			if msgMap, ok := lastMessage.(map[string]interface{}); ok {
-				if parts, ok := msgMap["parts"].([]interface{}); ok {
-					for _, part := range parts {
-						if partMap, ok := part.(map[string]interface{}); ok {
-							if partType, ok := partMap["type"].(string); ok && partType == "step-finish" {
-								if reason, ok := partMap["reason"].(string); ok && reason == "stop" {
-									messageComplete = true
-									break
-								}
-							}
-						}
-					}
-				}
-			}
-			if !messageComplete {
-				log.Printf("SyncStateWithOpenCode: OpenCode idle but message lacks step-finish guard (reason=stop) - possible abnormal termination")
-			}
-		}
+	shouldUpdateState := sm.State != newState
+	shouldUpdateWorkerBusy := sm.isWorkerBusy && newState == StateIdle
 
-		// If OpenCode reports idle, set State=IDLE since it's no longer processing.
-		// The step-finish guard above is for logging/detection purposes only.
-		// Always return the message as LatestResponse regardless of clean finish.
-		shouldUpdateState := sm.State != StateIdle
-
-		sm.mu.Lock()
-		sm.LatestResponse = map[string]interface{}{"result": lastMessage}
-		if shouldUpdateState {
-			sm.State = StateIdle
-			sm.isWorkerBusy = false
-		}
-		if sm.OnStateChange != nil {
-			stateToSave := sm.saveStateLocked()
-			sm.mu.Unlock()
-			sm.OnStateChange(stateToSave)
-		} else {
-			sm.mu.Unlock()
-		}
-		_ = messageComplete // Suppress unused variable warning (kept for clarity)
+	sm.mu.Lock()
+	sm.LatestResponse = map[string]interface{}{"result": lastMessage}
+	if shouldUpdateState {
+		sm.State = newState
+	}
+	if shouldUpdateWorkerBusy {
+		sm.isWorkerBusy = false
+	}
+	if sm.OnStateChange != nil {
+		stateToSave := sm.saveStateLocked()
+		sm.mu.Unlock()
+		sm.OnStateChange(stateToSave)
+	} else {
+		sm.mu.Unlock()
 	}
 
 	return sm.GetSnapshot()
 }
 
 // getMessageFinish extracts the finish reason from a step-finish part.
+// Returns "waiting_for_input", "stop", or "<unknown>" if no step-finish found.
+// This is the primary mechanism for determining session state in SyncStateWithOpenCode.
 func getMessageFinish(msg interface{}) string {
 	if msgMap, ok := msg.(map[string]interface{}); ok {
 		if parts, ok := msgMap["parts"].([]interface{}); ok {
