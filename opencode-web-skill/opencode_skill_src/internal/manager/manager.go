@@ -155,7 +155,8 @@ func (sm *SessionManager) SetAgentLocked(locked bool) {
 //   - No messages: keep current state
 //   - step-finish with reason=waiting_for_input: WAITING_FOR_INPUT
 //   - step-finish with reason=stop: IDLE
-//   - Any other message (timeout, error, etc.): IDLE
+//   - Message with info.error (timeout, etc.): IDLE
+//   - Message without step-finish or error: BUSY (still processing)
 //
 // Returns the (potentially updated) snapshot.
 func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
@@ -172,6 +173,7 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 
 	lastMessage := messages[0] // Already sorted newest first due to limit=1
 	finishReason := getMessageFinish(lastMessage)
+	hasError := hasMessageError(lastMessage)
 
 	// Determine new state from finish reason
 	var newState State
@@ -181,9 +183,14 @@ func (sm *SessionManager) SyncStateWithOpenCode() map[string]interface{} {
 	case "stop":
 		newState = StateIdle
 	default:
-		// No step-finish means OpenCode ended its turn (timeout, error, etc.)
-		// Treat as IDLE so user can resume or continue
-		newState = StateIdle
+		// No step-finish - check if it's a timeout/error or still processing
+		if hasError {
+			// Timeout or error ended the turn - treat as IDLE so user can resume
+			newState = StateIdle
+		} else {
+			// No step-finish and no error - still processing
+			newState = StateBusy
+		}
 	}
 
 	shouldUpdateState := sm.State != newState
@@ -226,6 +233,18 @@ func getMessageFinish(msg interface{}) string {
 		}
 	}
 	return "<unknown>"
+}
+
+// hasMessageError checks if the message contains an error (e.g., timeout).
+// Returns true if info.error exists in the message.
+func hasMessageError(msg interface{}) bool {
+	if msgMap, ok := msg.(map[string]interface{}); ok {
+		if info, ok := msgMap["info"].(map[string]interface{}); ok {
+			_, hasError := info["error"]
+			return hasError
+		}
+	}
+	return false
 }
 
 func (sm *SessionManager) Start() {
