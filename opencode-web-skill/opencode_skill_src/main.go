@@ -106,6 +106,7 @@ func main() {
 	model := flag.String("model", config.GetDefaultModel(), "Model ID")
 	sync := flag.Bool("sync", false, "Send prompt and wait for result synchronously")
 	quiet := flag.Bool("quiet", false, "Suppress informational messages (keep errors)")
+	council := flag.Bool("council", false, "Add council hint to prompt for critical paths")
 
 	flag.Parse()
 
@@ -302,7 +303,7 @@ func main() {
 		fmt.Println("   or: opencode_skill [flags] <PROJECT> <SESSION_NAME> /wait")
 		fmt.Println("   or: opencode_skill [flags] <PROJECT> <SESSION_NAME> /status")
 		fmt.Println("")
-		fmt.Println("Flags: --sync, --quiet, --agent, --model")
+		fmt.Println("Flags: --sync, --quiet, --council, --agent, --model")
 		os.Exit(1)
 	}
 
@@ -456,6 +457,9 @@ func main() {
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
+		if *council {
+			fullMessage += config.CouncilHint
+		}
 		payload := types.PromptRequest{
 			Agent: *agent,
 			Model: parseModel(*model),
@@ -515,6 +519,7 @@ func printUsage() {
 	fmt.Println("Flags (must come before positional arguments):")
 	fmt.Println("  --sync    Send prompt and wait for result synchronously")
 	fmt.Println("  --quiet   Suppress informational messages (keep errors)")
+	fmt.Println("  --council Add council hint to prompt for critical paths")
 	fmt.Println("  --agent   Agent name (default: orchestrator)")
 	fmt.Printf("  --model   Model ID (default: %s)\n", config.GetDefaultModel())
 }

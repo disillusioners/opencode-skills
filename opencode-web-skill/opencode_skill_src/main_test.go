@@ -2,7 +2,10 @@ package main
 
 import (
 	"os"
+	"strings"
 	"testing"
+
+	"opencode_skill/internal/config"
 )
 
 func TestFormatSubmittedMessage(t *testing.T) {
@@ -141,5 +144,21 @@ func TestResolveMessage_FileTrimsWhitespace(t *testing.T) {
 	expected := "Message with trailing whitespace"
 	if result != expected {
 		t.Errorf("resolveMessage(@file) = %q, want %q", result, expected)
+	}
+}
+
+func TestCouncilHint(t *testing.T) {
+	// Verify the hint is defined and contains key phrases
+	hint := config.CouncilHint
+	if hint == "" {
+		t.Error("CouncilHint should not be empty")
+	}
+	// Should start with newline separators
+	if len(hint) < 10 {
+		t.Error("CouncilHint is too short")
+	}
+	// Should mention council subagent
+	if !strings.Contains(hint, "council subagent") {
+		t.Error("CouncilHint should mention 'council subagent'")
 	}
 }

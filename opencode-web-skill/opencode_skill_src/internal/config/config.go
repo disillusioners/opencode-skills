@@ -15,6 +15,7 @@ const (
 	DefaultModel   = "litellm/coding"
 	DefaultAPIUser = "opencode"
 	DefaultAPIKey  = "opencode"
+	CouncilHint    = "\n\nMust use council subagent for critical paths (e.g., high-complexity logic, important decisions, breaking changes, architecture-related work)."
 )
 
 // Daemon Configuration
