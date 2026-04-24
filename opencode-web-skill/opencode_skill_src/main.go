@@ -123,20 +123,6 @@ func main() {
 	}
 
 	args := flag.Args()
-
-	// Support trailing --council flag
-	if !*council {
-		newArgs := make([]string, 0, len(args))
-		for _, arg := range args {
-			if arg == "--council" {
-				*council = true
-			} else {
-				newArgs = append(newArgs, arg)
-			}
-		}
-		args = newArgs
-	}
-
 	if len(args) < 1 {
 		printUsage()
 		os.Exit(1)
