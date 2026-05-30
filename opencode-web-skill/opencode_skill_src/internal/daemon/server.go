@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,15 +19,25 @@ import (
 	"opencode_skill/internal/config"
 	"opencode_skill/internal/manager"
 	"opencode_skill/internal/types"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func setupLogging() error {
-	logFile, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
+	lumberjackLogger := &lumberjack.Logger{
+		Filename:   config.LogFile,
+		MaxSize:   10,
+		MaxAge:    7,
+		MaxBackups: 5,
+		Compress:  true,
+	}
+
+	logDir := filepath.Dir(config.LogFile)
+	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return err
 	}
-	// Log to both file and stdout
-	multiWriter := io.MultiWriter(os.Stdout, logFile)
+
+	multiWriter := io.MultiWriter(os.Stdout, lumberjackLogger)
 	log.SetOutput(multiWriter)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	return nil
